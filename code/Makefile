@@ -15,8 +15,10 @@ all : $(ENTRY_POINT)
 %.ozf: %.oz
 	$(OZC) -c $< -o "$@"
 
-run: $(ENTRY_POINT) 
+run: $(ENTRY_POINT) read
 	$(OZENGINE) $(ENTRY_POINT) --folder $(TWEETS_FOLDER)
+
+read: reading.ozf
 
 clean :
 	rm -f *.ozf
