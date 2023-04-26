@@ -39,30 +39,29 @@ define
         0
     end
 
-    fun {ListFiles DirPath}
-    local F StrList in
-        F = {NewFileStream DirPath "r"}
-        StrList = {Stream.toList F}
-        {Stream.close F}
-        {List.map StrList fun {$ Str}
-            {String.trim Str} % Supprime les espaces et les retours à la ligne
-        end}
+    fun {Append L1 L2}
+        case L1
+        of nil then L2
+        [] H|T then H|{Append T L2}
+        else other
+        end
     end
-    end
-   
+
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port N}
-        Arg String File List
+        Arg File List Text TextList
     in
         Arg = {GetSentenceFolder}
-        String = {ListFiles Arg}
-        {Browse Arg}
-        File = {New TextFile init(name:Arg flags:[read write] mode:mode(owner:[write read] all:[read write]))}
-        {File read(list:List)}
-        {Browse List}
+        List = {OS.getDir Arg}
+        
+        for A in List do
+            {Browse {String.toAtom A}}
+        end
+        Text = {New TextFile init(name:{Append {Append Arg "/"} List.1})}
+        {Text read(list:TextList)}
 
-
+        {Browse {String.toAtom TextList}}
         % for I in 1..N do
         %     thread {NewPort S P} end
         % end
