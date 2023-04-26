@@ -8,6 +8,9 @@ import
     Property
     Browser
 define
+    InputWord
+    OutputWord
+
     %%% Pour ouvrir les fichiers
     class TextFile
         from Open.file Open.text
@@ -29,7 +32,13 @@ define
     %%%                                           | nil
     %%%                  <probability/frequence> := <int> | <float>
     fun {Press}
-        % TODO
+        WordString Word
+    in
+        % get word
+        {InputWord get(1:WordString)}
+        % {String.toAtom WordString Word}
+        Word = {SeparatedWords WordString}
+        {Browse Word}
         0
     end
    
@@ -41,6 +50,27 @@ define
     end
    
     %%% Ajouter vos fonctions et procédures auxiliaires ici
+    fun {SeparatedWords Sentence}
+        local
+            fun {AddWord Sentence Acc Result}
+                FinalResult
+            in 
+                case Sentence
+                of nil then 
+                    FinalResult = {String.toAtom {List.reverse Acc}}|Result
+                    {List.reverse FinalResult}
+                [] H|T then
+                    if {Char.isAlpha H}
+                        then {AddWord T H|Acc Result} 
+                    else
+                        {AddWord T nil  {String.toAtom {List.reverse Acc}}|Result} 
+                    end
+                end
+            end
+        in
+            {AddWord Sentence nil nil}
+        end
+    end
 
 
     %%% Fetch Tweets Folder from CLI Arguments
@@ -70,7 +100,7 @@ define
         %%% soumission !!!
         % {ListAllFiles {OS.getDir TweetsFolder}}
        
-        local NbThreads InputText OutputText Description Window SeparatedWordsStream SeparatedWordsPort in
+        local NbThreads InputText OutputText Description Window SeparatedWordsStream SeparatedWordsPort PressButton Return in
             {Property.put print foo(width:1000 depth:1000)}  % for stdout siz
         
             % TODO
@@ -78,7 +108,7 @@ define
             % Creation de l interface graphique
             Description=td(
                 title: "Text predictor"
-                lr(text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) button(text:"Predict" width:15 action:Press))
+                lr(text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) button(text:"Predict" width:15 action:PressButton))
                 text(handle:OutputText width:50 height:10 background:black foreground:white glue:w wrap:word)
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
@@ -88,14 +118,21 @@ define
             {Window show}
         
             {InputText tk(insert 'end' "Loading... Please wait.")}
-            {InputText bind(event:"<Control-s>" action:Press)} % You can also bind events
+            % {InputText bind(event:"<Control-s>" action:PressButton)} % You can also bind events
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
             NbThreads = 4
             {LaunchThreads SeparatedWordsPort NbThreads}
-        
+
             {InputText set(1:"")}
+
+            InputWord = InputText
+            OutputWord = OutputText
+
+            proc {PressButton}
+                Return = {Press}
+            end
         end
     end
     % Appelle la procedure principale
