@@ -8,6 +8,9 @@ import
     Property
     Browser
 define
+
+    InputWord
+
     %%% Pour ouvrir les fichiers
     class TextFile
         from Open.file Open.text
@@ -16,7 +19,8 @@ define
     proc {Browse Buf}
         {Browser.browse Buf}
     end
-   
+
+
     %%% /!\ Fonction testee /!\
     %%% @pre : les threads sont "ready"
     %%% @post: Fonction appellee lorsqu on appuie sur le bouton de prediction
@@ -29,18 +33,55 @@ define
     %%%                                           | nil
     %%%                  <probability/frequence> := <int> | <float>
     fun {Press}
-        % TODO
+        Word
+    in
+        {InputWord get(Word)}
         0
+    end
+
+    fun {ListFiles DirPath}
+    local F StrList in
+        F = {NewFileStream DirPath "r"}
+        StrList = {Stream.toList F}
+        {Stream.close F}
+        {List.map StrList fun {$ Str}
+            {String.trim Str} % Supprime les espaces et les retours à la ligne
+        end}
+    end
     end
    
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port N}
-        % TODO
-        skip
+        Arg String File List
+    in
+        Arg = {GetSentenceFolder}
+        String = {ListFiles Arg}
+        {Browse Arg}
+        File = {New TextFile init(name:Arg flags:[read write] mode:mode(owner:[write read] all:[read write]))}
+        {File read(list:List)}
+        {Browse List}
+
+
+        % for I in 1..N do
+        %     thread {NewPort S P} end
+        % end
     end
    
     %%% Ajouter vos fonctions et procédures auxiliaires ici
+
+    fun {ReadList F}
+        fun{$ L}
+            fun{Loop L}
+                case L of 
+                H|T then
+                {F H}|{Loop T}
+                end
+            end
+        in 
+            thread {Loop L} end
+        end
+    end
 
 
     %%% Fetch Tweets Folder from CLI Arguments
@@ -70,7 +111,7 @@ define
         %%% soumission !!!
         % {ListAllFiles {OS.getDir TweetsFolder}}
        
-        local NbThreads InputText OutputText Description Window SeparatedWordsStream SeparatedWordsPort in
+        local NbThreads InputText OutputText Description Window SeparatedWordsStream SeparatedWordsPort PressButton in
             {Property.put print foo(width:1000 depth:1000)}  % for stdout siz
         
             % TODO
@@ -78,17 +119,31 @@ define
             % Creation de l interface graphique
             Description=td(
                 title: "Text predictor"
-                lr(text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) button(text:"Predict" width:15 action:Press))
+                lr(
+                    text(handle:InputText width:50 height:10 background:white foreground:black wrap:word)
+                    button(text:"Predict" width:15 action:PressButton)
+                )
                 text(handle:OutputText width:50 height:10 background:black foreground:white glue:w wrap:word)
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
+            InputWord = InputText
+
+            % Function that is called upon the predict button press
+            proc {PressButton}
+                A B C
+            in
+                {InputText get(A)}
+                {String.toAtom A C}
+                {OutputText set(1:C)}
+                B = {Press}
+            end
         
             % Creation de la fenetre
             Window={QTk.build Description}
             {Window show}
         
             {InputText tk(insert 'end' "Loading... Please wait.")}
-            {InputText bind(event:"<Control-s>" action:Press)} % You can also bind events
+            {InputText bind(event:"<Control-s>" action:PressButton)} % You can also bind events
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
