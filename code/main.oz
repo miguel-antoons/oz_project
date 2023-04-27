@@ -188,20 +188,40 @@ define
         thread {ParseThread Lines Port} end
     end
 
-    %%% Thread that saves the result of the parsing into a tree
-    proc {SaverThread Port}
-        case Port
-        of nil then skip
+    %%% Function checks if the word is already present in the tree.
+    %%% If it is, it returns the node containing the word, else it returns false
+    fun {AlreadyInTree Children Word}
+        case Children
+        of nil then false
+        [] H|T then
+            if H.word == Word then
+                H
+            else 
+                {AlreadyInTree T Word}
+            end
+        end
+
+    fun {AddTriGram WordSequence}
+        case WordSequence
+        of nil then nil
         [] H|T then
             {Browse H}
-            {SaverThread T}
+            {AddTriGram T}
+        end
+    %%% Thread that saves the result of the parsing into a tree
+    fun {SaverThread Port}
+        case Port
+        of nil then nil
+        [] H|T then
+            {Browse H}
+            node()
         end
     end
 
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port N}
-        Arg File List Text TextList S1
+        Arg File List Text TextList S1 Tree
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
@@ -210,6 +230,8 @@ define
         for I1 in 0..N do
             {LaunchThreadPair List Port N I1}
         end
+        Tree = node(freq:0 word:0 children:{SaverThread Port})
+        Tree = {SaverThread Port node(freq:0 word:0 children:nil)}
     end
 
 
