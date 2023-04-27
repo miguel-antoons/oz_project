@@ -123,32 +123,39 @@ define
         in 
             case Sentence
             of nil then 
-                FinalResult = {String.toAtom {List.reverse Acc}}|Result
-                {Browse {List.reverse FinalResult}}
+                FinalResult = Result|Acc|nil
+                {Browse FinalResult}
             [] H|T then
                 if {Char.isAlpha H} then 
                     if {Char.isPunct H} then
-                        {AddWord T nil {String.toAtom {List.reverse Acc}}|Result 0} 
+                        {AddWord T.2 T.1 Result|Acc|nil 0} 
                     else
-                        {AddWord T {Char.toLower H}|Acc Result Count} 
+                        {AddWord T Acc|{Char.toLower H} Result Count} 
                     end
                 else
                     if {Char.isSpace H} then
                         if Count == 2 then 
-                            {AddWord T nil nil 0} 
-                            FinalResult = {String.toAtom {List.reverse Acc}}|Result
-                            {Browse {List.reverse FinalResult}}
+                            {AddWord T.2 T.1 nil 0} 
+                            FinalResult = Result|Acc|nil
+                            {Browse Result}
                         else
-                            {AddWord T nil {String.toAtom {List.reverse Acc}}|Result Count+1} 
+                            if Result == nil then
+                                {AddWord T nil Acc|nil Count+1} 
+                            else
+                                {AddWord T nil Result|Acc|nil Count+1} 
+                            end
                         end
                     else
-                        {AddWord T nil {String.toAtom {List.reverse Acc}}|Result Count} 
+                        skip
                     end
                 end
             end
         end
     in
-        {AddWord Sentence nil nil 0}
+        case Sentence of nil then skip
+        [] H|T then
+            {AddWord T H nil 0}
+        end
     end
 
     proc {ParseText Lines}
