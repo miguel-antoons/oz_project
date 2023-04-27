@@ -39,7 +39,7 @@ define
         % get word
         {InputWord get(1:WordString)}
         % {String.toAtom WordString Word}
-        Word = {SeparatedWords WordString}
+        Word = {SeparatedWords2 WordString}
         {Browse Word}
         0
     end
@@ -70,7 +70,6 @@ define
         % first, check if there are lines to read
         {TextFile atEnd(AtEnd)}
         if AtEnd then
-            {Browse hello}
             {TextFile close}
             NextLine|nil
         else
@@ -97,7 +96,7 @@ define
     end
 
     % List all the words in a sentence
-    fun {SeparatedWords Sentence}
+    fun {SeparatedWords2 Sentence}
         fun {AddWord Sentence Acc Result}
             FinalResult
         in 
@@ -117,14 +116,49 @@ define
         {AddWord Sentence nil nil}
     end
 
+    % List all the words in a sentence
+    proc {SeparatedWords Sentence}
+        proc {AddWord Sentence Acc Result Count}
+            FinalResult Save
+        in 
+            case Sentence
+            of nil then 
+                FinalResult = {String.toAtom {List.reverse Acc}}|Result
+                {Browse {List.reverse FinalResult}}
+            [] H|T then
+                if {Char.isAlpha H} then 
+                    if {Char.isPunct H} then
+                        {AddWord T nil {String.toAtom {List.reverse Acc}}|Result 0} 
+                    else
+                        {AddWord T {Char.toLower H}|Acc Result Count} 
+                    end
+                else
+                    if {Char.isSpace H} then
+                        if Count == 2 then 
+                            {AddWord T nil nil 0} 
+                            FinalResult = {String.toAtom {List.reverse Acc}}|Result
+                            {Browse {List.reverse FinalResult}}
+                        else
+                            {AddWord T nil {String.toAtom {List.reverse Acc}}|Result Count+1} 
+                        end
+                    else
+                        {AddWord T nil {String.toAtom {List.reverse Acc}}|Result Count} 
+                    end
+                end
+            end
+        end
+    in
+        {AddWord Sentence nil nil 0}
+    end
+
     proc {ParseText Lines}
         List 
     in
         case Lines
         of nil then skip
         [] H|T then
-            List = {SeparatedWords H}
-            {Browse List}
+            {SeparatedWords H}
+            {Delay 10000}
             {ParseText T}
         end
     end
