@@ -15,7 +15,7 @@ all : $(ENTRY_POINT)
 %.ozf: %.oz
 	$(OZC) -c $< -o "$@"
 
-run: $(ENTRY_POINT) read
+run: $(ENTRY_POINT)
 	$(OZENGINE) $(ENTRY_POINT) --folder $(TWEETS_FOLDER)
 
 read: reading.ozf

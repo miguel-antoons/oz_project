@@ -7,7 +7,7 @@ import
     OS
     Property
     Browser
-    Read at 'file://reading.ozf'
+    % Read at 'file://reading.ozf'
 define
     InputWord
     OutputWord
@@ -96,11 +96,35 @@ define
         end
     end
 
+    % List all the words in a sentence
+    fun {SeparatedWords Sentence}
+        fun {AddWord Sentence Acc Result}
+            FinalResult
+        in 
+            case Sentence
+            of nil then 
+                FinalResult = {String.toAtom {List.reverse Acc}}|Result
+                {List.reverse FinalResult}
+            [] H|T then
+                if {Char.isAlpha H}
+                    then {AddWord T H|Acc Result} 
+                else
+                    {AddWord T nil  {String.toAtom {List.reverse Acc}}|Result} 
+                end
+            end
+        end
+    in
+        {AddWord Sentence nil nil}
+    end
+
     proc {ParseText Lines}
+        List 
+    in
         case Lines
         of nil then skip
         [] H|T then
-            {Browse {String.toAtom H}}
+            List = {SeparatedWords H}
+            {Browse List}
             {ParseText T}
         end
     end
@@ -130,6 +154,16 @@ define
         thread {ParseThread Lines Port} end
     end
 
+    %%% Thread that saves the result of the parsing into a tree
+    proc {SaverThread Port}
+        case Port
+        of nil then skip
+        [] H|T then
+            {Browse H}
+            {SaverThread T}
+        end
+    end
+
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port N}
@@ -142,46 +176,10 @@ define
         for I1 in 0..N do
             {LaunchThreadPair List Port N I1}
         end
-
-        % {Browse {String.toAtom TextList}}
     end
 
 
     %%% Ajouter vos fonctions et procédures auxiliaires ici %%%
-
-    % List all the words in a sentence
-    fun {SeparatedWords Sentence}
-        fun {AddWord Sentence Acc Result}
-            FinalResult
-        in 
-            case Sentence
-            of nil then 
-                FinalResult = {String.toAtom {List.reverse Acc}}|Result
-                {List.reverse FinalResult}
-            [] H|T then
-                if {Char.isAlpha H}
-                    then {AddWord T H|Acc Result} 
-                else
-                    {AddWord T nil  {String.toAtom {List.reverse Acc}}|Result} 
-                end
-            end
-        end
-    in
-        {AddWord Sentence nil nil}
-    end
-
-    fun {StreamFile F}
-        fun{$ L}
-            fun{Loop L}
-                case L of 
-                H|T then
-                {F H}|{Loop T}
-                end
-            end
-        in 
-            thread {Loop L} end
-        end
-    end
 
     %%% Fetch Tweets Folder from CLI Arguments
     %%% See the Makefile for an example of how it is called
