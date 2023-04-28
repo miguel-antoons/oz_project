@@ -130,17 +130,41 @@ define
         end
     end
 
+    fun {GetThreeWords List}
+        fun {GetThreeWordsAux L Three Result Count}
+            case L
+            of nil then Result
+            [] H|T then
+                if {ArrayLen H 0} == 1 then
+                    if {Char.isPunct H.1} then
+                        {GetThreeWordsAux T nil Result 0}
+                    else
+                        {GetThreeWordsAux T Three Result Count}
+                    end
+                elseif H == nil then
+                    {GetThreeWordsAux T Three Result Count}
+                else
+                    if Count == 2 then
+                        {GetThreeWordsAux T nil {AppendListOfList Three H} 0}
+                    else
+                        {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1}
+                    end
+                end
+            end
+        end
+        in
+        {GetThreeWordsAux List nil nil 0}
+    end
+
     proc {ParseText Lines}
-        List 
+        List Words
     in
         case Lines % lines to line
         of nil then skip
         [] H|T then
             List = {SentenceToWords H}
-            for Word in List do
-                {Browse {String.toAtom Word}}
-                {Delay 1000}
-            end
+            Words = {GetThreeWords List}
+            %% send to port here
             {ParseText T}
         end
     end
