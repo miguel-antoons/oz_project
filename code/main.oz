@@ -39,7 +39,7 @@ define
         % get word
         {InputWord get(1:WordString)}
         % {String.toAtom WordString Word}
-        Word = {SeparatedWords2 WordString}
+        Word = {SentenceToWords WordString}
         {Browse Word}
         0
     end
@@ -95,77 +95,52 @@ define
         end
     end
 
-    % List all the words in a sentence
-    fun {SeparatedWords2 Sentence}
-        fun {AddWord Sentence Acc Result}
-            FinalResult
-        in 
-            case Sentence
-            of nil then 
-                FinalResult = {String.toAtom {List.reverse Acc}}|Result
-                {List.reverse FinalResult}
-            [] H|T then
-                if {Char.isAlpha H}
-                    then {AddWord T H|Acc Result} 
-                else
-                    {AddWord T nil  {String.toAtom {List.reverse Acc}}|Result} 
-                end
-            end
+    fun {AppendListOfList LoL L}
+        case LoL
+        of nil then [L]
+        [] H|T then H|{AppendListOfList T L}
         end
-    in
-        {AddWord Sentence nil nil}
-    end
+     end
 
-    % List all the words in a sentence
-    proc {SeparatedWords Sentence}
-        proc {AddWord Sentence Acc Result Count}
-            FinalResult Save
-        in 
-            case Sentence
-            of nil then 
-                FinalResult = Result|Acc|nil
-                {Browse FinalResult}
+    fun {SentenceToWords Sentence}
+        fun {SentenceToWordsAux S Word Result}
+            case S
+            of nil then Result
             [] H|T then
-                if {Char.isAlpha H} then 
-                    if {Char.isPunct H} then
-                        {AddWord T.2 T.1 Result|Acc|nil 0} 
-                    else
-                        {AddWord T Acc|{Char.toLower H} Result Count} 
-                    end
+                if {Char.isAlpha H} then
+                    {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
                 else
                     if {Char.isSpace H} then
-                        if Count == 2 then 
-                            {AddWord T.2 T.1 nil 0} 
-                            FinalResult = Result|Acc|nil
-                            {Browse Result}
-                        else
-                            if Result == nil then
-                                {AddWord T nil Acc|nil Count+1} 
-                            else
-                                {AddWord T nil Result|Acc|nil Count+1} 
-                            end
-                        end
+                        {SentenceToWordsAux T nil {AppendListOfList Result Word}}
+                    elseif {Char.isPunct H} then
+                        {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
                     else
-                        skip
+                        {SentenceToWordsAux T Word Result}
                     end
                 end
             end
         end
-    in
-        case Sentence of nil then skip
+    in 
+        case Sentence
+        of nil then 
+            {Browse fuck}
+            nil
         [] H|T then
-            {AddWord T H nil 0}
+            {SentenceToWordsAux T {Char.toLower H}|nil nil}
         end
     end
 
     proc {ParseText Lines}
         List 
     in
-        case Lines
+        case Lines % lines to line
         of nil then skip
         [] H|T then
-            {SeparatedWords H}
-            {Delay 10000}
+            List = {SentenceToWords H}
+            for Word in List do
+                {Browse {String.toAtom Word}}
+                {Delay 1000}
+            end
             {ParseText T}
         end
     end
