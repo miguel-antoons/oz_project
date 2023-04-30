@@ -39,7 +39,7 @@ define
         % get word
         {InputWord get(1:WordString)}
         % {String.toAtom WordString Word}
-        Word = {SeparatedWords2 WordString}
+        Word = {SentenceToWords WordString}
         {Browse Word}
         0
     end
@@ -95,71 +95,75 @@ define
         end
     end
 
-    % List all the words in a sentence
-    fun {SeparatedWords2 Sentence}
-        fun {AddWord Sentence Acc Result}
-            FinalResult
-        in 
-            case Sentence
-            of nil then 
-                FinalResult = {String.toAtom {List.reverse Acc}}|Result
-                {List.reverse FinalResult}
-            [] H|T then
-                if {Char.isAlpha H}
-                    then {AddWord T H|Acc Result} 
-                else
-                    {AddWord T nil  {String.toAtom {List.reverse Acc}}|Result} 
-                end
-            end
+    fun {AppendListOfList LoL L}
+        case LoL
+        of nil then [L]
+        [] H|T then H|{AppendListOfList T L}
         end
-    in
-        {AddWord Sentence nil nil}
-    end
+     end
 
-    % List all the words in a sentence
-    proc {SeparatedWords Sentence}
-        proc {AddWord Sentence Acc Result Count}
-            FinalResult Save
-        in 
-            case Sentence
-            of nil then 
-                FinalResult = {String.toAtom {List.reverse Acc}}|Result
-                {Browse {List.reverse FinalResult}}
+    fun {SentenceToWords Sentence}
+        fun {SentenceToWordsAux S Word Result}
+            case S
+            of nil then Result
             [] H|T then
-                if {Char.isAlpha H} then 
-                    if {Char.isPunct H} then
-                        {AddWord T nil {String.toAtom {List.reverse Acc}}|Result 0} 
-                    else
-                        {AddWord T {Char.toLower H}|Acc Result Count} 
-                    end
+                if {Char.isAlpha H} then
+                    {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
                 else
                     if {Char.isSpace H} then
-                        if Count == 2 then 
-                            {AddWord T nil nil 0} 
-                            FinalResult = {String.toAtom {List.reverse Acc}}|Result
-                            {Browse {List.reverse FinalResult}}
-                        else
-                            {AddWord T nil {String.toAtom {List.reverse Acc}}|Result Count+1} 
-                        end
+                        {SentenceToWordsAux T nil {AppendListOfList Result Word}}
+                    elseif {Char.isPunct H} then
+                        {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
                     else
-                        {AddWord T nil {String.toAtom {List.reverse Acc}}|Result Count} 
+                        {SentenceToWordsAux T Word Result}
                     end
                 end
             end
         end
-    in
-        {AddWord Sentence nil nil 0}
+    in 
+        case Sentence
+        of nil then nil
+        [] H|T then
+            {SentenceToWordsAux T {Char.toLower H}|nil nil}
+        end
     end
 
-    proc {ParseText Lines}
-        List 
+    fun {GetThreeWords List}
+        fun {GetThreeWordsAux L Three Result Count}
+            case L
+            of nil then Result
+            [] H|T then
+                if {ArrayLen H 0} == 1 then
+                    if {Char.isPunct H.1} then
+                        {GetThreeWordsAux T nil Result 0}
+                    else
+                        {GetThreeWordsAux T Three Result Count}
+                    end
+                elseif H == nil then
+                    {GetThreeWordsAux T Three Result Count}
+                else
+                    if Count == 2 then
+                        {GetThreeWordsAux T nil {AppendListOfList Three H} 0}
+                    else
+                        {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1}
+                    end
+                end
+            end
+        end
+        in
+        {GetThreeWordsAux List nil nil 0}
+    end
+
+    proc {ParseText Lines Port}
+        List Words
     in
-        case Lines
+        case Lines % lines to line
         of nil then skip
         [] H|T then
-            {SeparatedWords H}
-            {Delay 10000}
-            {ParseText T}
+            List = {SentenceToWords H}
+            Words = {GetThreeWords List}
+            {Send Port Words}
+            {ParseText T Port}
         end
     end
 
@@ -168,24 +172,17 @@ define
         case TextLines
         of nil then skip
         [] H|T then
-            {ParseText H}
+            {ParseText H Port}
         end
-        % {ParseText TextLines.1}
-        % case Lines
-        % of nil then nil
-        % [] H|Ts then
-        %     % {SeparatedWords H}|{ParseLines T}
-        %     {Browse H}
-        %     {ParseThread Ts Port}
-        % end
     end
 
     %%% Funtion launches the reader and parsing thread and creates a stream between them
-    proc {LaunchThreadPair Files Port N ThreadNumber}
+    proc {LaunchThreadPair Files Port Stream N ThreadNumber}
         Lines % stream that will contain the lines of the files
     in
         thread Lines = {ReadThread Files N ThreadNumber 0} end
         thread {ParseThread Lines Port} end
+        thread {SaverThread Stream} end
     end
 
     %%% Function checks if the word is already present in the tree.
@@ -255,10 +252,9 @@ define
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
-        {Browse {String.toAtom List.1}}
 
         for I1 in 0..N do
-            {LaunchThreadPair List Port N I1}
+            {LaunchThreadPair List Port Stream N I1}
         end
 
         Tree = {SaverThread Stream node(freq:0 word:0 children:nil)}
@@ -309,41 +305,41 @@ define
             % TODO
             {Browse {SaverThread [['salut' 'comment' 'ça'] ['comment' 'ça' 'va'] ['salut' 'ta' 'nathalie']] node(freq:0 word:0 children:nil)}}
         
-            % % Creation de l interface graphique
-            % Description=td(
-            %     title: "Text predictor"
-            %     lr(text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) button(text:"Predict" width:15 action:PressButton))
-            %     text(handle:OutputText width:50 height:10 background:black foreground:white glue:w wrap:word)
-            %     action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
-            % )
-            % InputWord = InputText
+            % Creation de l interface graphique
+            Description=td(
+                title: "Text predictor"
+                lr(text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) button(text:"Predict" width:15 action:PressButton))
+                text(handle:OutputText width:50 height:10 background:black foreground:white glue:w wrap:word)
+                action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
+            )
+            InputWord = InputText
 
-            % % Function that is called upon the predict button press
-            % proc {PressButton}
-            %     A B C
-            % in
-            %     {InputText get(A)}
-            %     {String.toAtom A C}
-            %     {OutputText set(1:C)}
-            %     B = {Press}
-            % end
+            % Function that is called upon the predict button press
+            proc {PressButton}
+                A B C
+            in
+                {InputText get(A)}
+                {String.toAtom A C}
+                {OutputText set(1:C)}
+                B = {Press}
+            end
         
-            % % Creation de la fenetre
-            % Window={QTk.build Description}
-            % {Window show}
+            % Creation de la fenetre
+            Window={QTk.build Description}
+            {Window show}
         
-            % {InputText tk(insert 'end' "Loading... Please wait.")}
-            % {InputText bind(event:"<Control-s>" action:PressButton)} % You can also bind events
+            {InputText tk(insert 'end' "Loading... Please wait.")}
+            {InputText bind(event:"<Control-s>" action:PressButton)} % You can also bind events
         
-            % % On lance les threads de lecture et de parsing
-            % SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            % NbThreads = 1
-            % {LaunchThreads SeparatedWordsPort SeparatedWordsStream NbThreads}
+            % On lance les threads de lecture et de parsing
+            SeparatedWordsPort = {NewPort SeparatedWordsStream}
+            NbThreads = 1
+            {LaunchThreads SeparatedWordsPort SeparatedWordsStream NbThreads}
 
-            % {InputText set(1:"")}
+            {InputText set(1:"")}
 
-            % InputWord = InputText
-            % OutputWord = OutputText
+            InputWord = InputText
+            OutputWord = OutputText
         end
     end
     % Appelle la procedure principale
