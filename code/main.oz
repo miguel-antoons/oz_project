@@ -122,9 +122,7 @@ define
         end
     in 
         case Sentence
-        of nil then 
-            {Browse fuck}
-            nil
+        of nil then nil
         [] H|T then
             {SentenceToWordsAux T {Char.toLower H}|nil nil}
         end
@@ -156,7 +154,7 @@ define
         {GetThreeWordsAux List nil nil 0}
     end
 
-    proc {ParseText Lines}
+    proc {ParseText Lines Port}
         List Words
     in
         case Lines % lines to line
@@ -164,8 +162,8 @@ define
         [] H|T then
             List = {SentenceToWords H}
             Words = {GetThreeWords List}
-            %% send to port here
-            {ParseText T}
+            {Send Port Words}
+            {ParseText T Port}
         end
     end
 
@@ -174,47 +172,40 @@ define
         case TextLines
         of nil then skip
         [] H|T then
-            {ParseText H}
+            {ParseText H Port}
         end
-        % {ParseText TextLines.1}
-        % case Lines
-        % of nil then nil
-        % [] H|Ts then
-        %     % {SeparatedWords H}|{ParseLines T}
-        %     {Browse H}
-        %     {ParseThread Ts Port}
-        % end
     end
 
     %%% Funtion launches the reader and parsing thread and creates a stream between them
-    proc {LaunchThreadPair Files Port N ThreadNumber}
+    proc {LaunchThreadPair Files Port Stream N ThreadNumber}
         Lines % stream that will contain the lines of the files
     in
         thread Lines = {ReadThread Files N ThreadNumber 0} end
         thread {ParseThread Lines Port} end
+        thread {SaverThread Stream} end
     end
 
     %%% Thread that saves the result of the parsing into a tree
-    proc {SaverThread Port}
-        case Port
+    proc {SaverThread Stream}
+        case Stream
         of nil then skip
         [] H|T then
             {Browse H}
+            {Delay 1000}
             {SaverThread T}
         end
     end
 
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
-    proc {LaunchThreads Port N}
+    proc {LaunchThreads Port Stream N}
         Arg File List Text TextList S1
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
-        {Browse {String.toAtom List.1}}
 
         for I1 in 0..N do
-            {LaunchThreadPair List Port N I1}
+            {LaunchThreadPair List Port Stream N I1}
         end
     end
 
@@ -291,7 +282,7 @@ define
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
             NbThreads = 1
-            {LaunchThreads SeparatedWordsPort NbThreads}
+            {LaunchThreads SeparatedWordsPort SeparatedWordsStream NbThreads}
 
             {InputText set(1:"")}
 
