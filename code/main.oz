@@ -129,29 +129,38 @@ define
     end
 
     fun {GetThreeWords List}
-        fun {GetThreeWordsAux L Three Result Count}
+        fun {GetThreeWordsAux L Three Result Count PastList}
             case L
-            of nil then Result
+            of nil then 
+                Result
             [] H|T then
-                if {ArrayLen H 0} == 1 then
-                    if {Char.isPunct H.1} then
-                        {GetThreeWordsAux T nil Result 0}
+                case PastList
+                of nil then Result
+                [] H2|T2 then
+                    if {ArrayLen H 0} == 1 then
+                        if {Char.isPunct H.1} then
+                            {GetThreeWordsAux PastList nil Result 0 T2}
+                        else
+                            {GetThreeWordsAux T Three Result Count PastList}
+                        end
+                    elseif H == nil then
+                        {GetThreeWordsAux T Three Result Count PastList}
                     else
-                        {GetThreeWordsAux T Three Result Count}
-                    end
-                elseif H == nil then
-                    {GetThreeWordsAux T Three Result Count}
-                else
-                    if Count == 2 then
-                        {GetThreeWordsAux T nil {AppendListOfList Three H} 0}
-                    else
-                        {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1}
+                        if Count == 2 then
+                            {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
+                        else
+                            {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1 PastList}
+                        end
                     end
                 end
             end
         end
-        in
-        {GetThreeWordsAux List nil nil 0}
+    in
+        case List
+        of nil then nil
+        [] H|T then
+            {GetThreeWordsAux List nil nil 0 T}
+        end
     end
 
     proc {ParseText Lines Port}
@@ -182,7 +191,6 @@ define
     in
         thread Lines = {ReadThread Files N ThreadNumber 0} end
         thread {ParseThread Lines Port} end
-        thread {SaverThread Stream} end
     end
 
     %%% Function checks if the word is already present in the tree.
