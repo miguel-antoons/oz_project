@@ -205,27 +205,57 @@ define
                 {AlreadyInTree T Word}
             end
         end
+    end
 
-    fun {AddTriGram WordSequence}
+
+    %%% Function adds a trigram to the tree.
+    %%% It does so by taking the first word of the sequence and checking if it is already present in the tree.
+    %%% If it is, it increments the frequency of the node and does a recursion to update its children with the next word.
+    fun {AddTriGram WordSequence ParentChildren}
         case WordSequence
-        of nil then nil
-        [] H|T then
-            {Browse H}
-            {AddTriGram T}
+        of nil then
+            % if there are no more words to add to the tree, return nil
+            nil
+        % if there are still a word to add to the tree
+        [] Hw|Tw then
+            % check if there are still children to browse
+            case ParentChildren
+            of nil then
+                % if there are none, add a new node from the word and do a recursion
+                % to update the children with the remaining words of the sequence
+                node(freq:1 word:Hw children:{AddTriGram Tw nil})|nil
+            % if there are still children to browse (which means that the searched word could be among thos children)
+            [] Hp|Tp then
+                % check if the child's word is the same as the searched word
+                if Hp.word == Hw then
+                    % if it is, increment the frequency of the node and do a recursion to update its children.
+                    % Keep the rest of the parent's children as is.
+                    node(freq:Hp.freq+1 word:Hp.word children:{AddTriGram Tw Hp.children})|Tp
+                else
+                    % if it is not, let the current child as is and check if the next child is the searched word
+                    Hp|{AddTriGram WordSequence Tp}
+                end
+            end
         end
+    end
+
+
     %%% Thread that saves the result of the parsing into a tree
-    fun {SaverThread Port}
-        case Port
-        of nil then nil
+    fun {SaverThread Stream Root}
+        % if the stream is empty, return the root and add il to the children to indicate its an array
+        case Stream
+        of nil then
+            Root
+        % if there are still elements in the stream, add the trigram to the tree and do a recursion
+        % in order to keep the root node updated
         [] H|T then
-            {Browse H}
-            node()
+            {SaverThread T node(freq:Root.freq word:Root.word children:{AddTriGram H Root.children})}
         end
     end
 
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
-    proc {LaunchThreads Port N}
+    proc {LaunchThreads Port Stream N}
         Arg File List Text TextList S1 Tree
     in
         Arg = {GetSentenceFolder}
@@ -234,8 +264,8 @@ define
         for I1 in 0..N do
             {LaunchThreadPair List Port Stream N I1}
         end
-        Tree = node(freq:0 word:0 children:{SaverThread Port})
-        Tree = {SaverThread Port node(freq:0 word:0 children:nil)}
+
+        Tree = {SaverThread Stream node(freq:0 word:0 children:nil)}
     end
 
 
@@ -281,6 +311,7 @@ define
             {Property.put print foo(width:1000 depth:1000)}  % for stdout siz
         
             % TODO
+            {Browse {SaverThread [['salut' 'comment' 'ça'] ['comment' 'ça' 'va'] ['salut' 'ta' 'nathalie']] node(freq:0 word:0 children:nil)}}
         
             % Creation de l interface graphique
             Description=td(
