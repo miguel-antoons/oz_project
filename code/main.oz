@@ -11,6 +11,7 @@ import
 define
     InputWord
     OutputWord
+    Tree
 
     %%% Pour ouvrir les fichiers
     class TextFile
@@ -40,6 +41,7 @@ define
         {InputWord get(1:WordString)}
         % {String.toAtom WordString Word}
         Word = {SentenceToWords WordString}
+        {Browse Tree}
         {Browse Word}
         0
     end
@@ -131,15 +133,18 @@ define
     fun {GetThreeWords List}
         fun {GetThreeWordsAux L Three Result Count PastList}
             case L
-            of nil then 
-                Result
+            of nil then Result
             [] H|T then
                 case PastList
                 of nil then Result
                 [] H2|T2 then
                     if {ArrayLen H 0} == 1 then
                         if {Char.isPunct H.1} then
-                            {GetThreeWordsAux PastList nil Result 0 T2}
+                            case T 
+                            of nil then Result
+                            [] H3|T3 then 
+                                {GetThreeWordsAux T nil Result 0 T3}
+                            end
                         else
                             {GetThreeWordsAux T Three Result Count PastList}
                         end
@@ -149,6 +154,8 @@ define
                         if Count == 2 then
                             {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
                         else
+                            {Browse {String.toAtom H}}
+                            {Delay 500}
                             {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1 PastList}
                         end
                     end
@@ -171,7 +178,9 @@ define
         [] H|T then
             List = {SentenceToWords H}
             Words = {GetThreeWords List}
-            {Send Port Words}
+            for Word in Words do
+                {Send Port Word}
+            end
             {ParseText T Port}
         end
     end
@@ -183,6 +192,7 @@ define
         [] H|T then
             {ParseText H Port}
         end
+        {Send Port finish}
     end
 
     %%% Funtion launches the reader and parsing thread and creates a stream between them
@@ -191,20 +201,6 @@ define
     in
         thread Lines = {ReadThread Files N ThreadNumber 0} end
         thread {ParseThread Lines Port} end
-    end
-
-    %%% Function checks if the word is already present in the tree.
-    %%% If it is, it returns the node containing the word, else it returns false
-    fun {AlreadyInTree Children Word}
-        case Children
-        of nil then false
-        [] H|T then
-            if H.word == Word then
-                H
-            else 
-                {AlreadyInTree T Word}
-            end
-        end
     end
 
 
@@ -239,9 +235,8 @@ define
         end
     end
 
-
     %%% Thread that saves the result of the parsing into a tree
-    fun {SaverThread Stream Root}
+    fun {SaverThread Stream Root N Count}
         % if the stream is empty, return the root and add il to the children to indicate its an array
         case Stream
         of nil then
@@ -249,14 +244,23 @@ define
         % if there are still elements in the stream, add the trigram to the tree and do a recursion
         % in order to keep the root node updated
         [] H|T then
-            {SaverThread T node(freq:Root.freq word:Root.word children:{AddTriGram H Root.children})}
+            {Browse H}
+            if H == finish then
+                if Count == N then
+                    Root
+                else
+                    {SaverThread T Root N Count+1}
+                end
+            else
+                {SaverThread T node(freq:Root.freq word:Root.word children:{AddTriGram H Root.children}) N Count}
+            end
         end
     end
 
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port Stream N}
-        Arg File List Text TextList S1 Tree
+        Arg File List Text TextList S1
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
@@ -265,7 +269,7 @@ define
             {LaunchThreadPair List Port Stream N I1}
         end
 
-        Tree = {SaverThread Stream node(freq:0 word:0 children:nil)}
+        thread Tree = {SaverThread Stream node(freq:0 word:0 children:nil) N 0} end
     end
 
 
@@ -311,7 +315,6 @@ define
             {Property.put print foo(width:1000 depth:1000)}  % for stdout siz
         
             % TODO
-            {Browse {SaverThread [['salut' 'comment' 'ça'] ['comment' 'ça' 'va'] ['salut' 'ta' 'nathalie']] node(freq:0 word:0 children:nil)}}
         
             % Creation de l interface graphique
             Description=td(
