@@ -24,4 +24,4 @@ clean :
 	rm -f *.ozf
 
 test: $(ENTRY_POINT)
-	$(OZENGINE) $(ENTRY_POINT) --folder test_text
+	$(OZENGINE) $(ENTRY_POINT) --folder test_folder

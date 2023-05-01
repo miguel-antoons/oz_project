@@ -135,8 +135,10 @@ define
     fun {Press}
         WordString Word Result
     in
+        {Browse Tree}
         % get word
         {InputWord get(1:WordString)}
+        
 
         case WordString
         of nil then
@@ -401,7 +403,7 @@ define
             {LaunchThreadPair List Port Stream N I1}
         end
 
-        thread Tree = {SaverThread Stream node(freq:0 word:0 children:nil) N 0} {Browse finish} end
+        thread Tree = {SaverThread Stream node(freq:0 word:0 children:nil) N 0} end
     end
 
 
@@ -461,7 +463,9 @@ define
             proc {PressButton}
                 A B C
             in
-                {OutputText set(1:"Waiting for threads to finish,. Please wait ...")}
+                {InputText get(A)}
+                {String.toAtom A C}
+                {OutputText set(1:C)}
                 B = {Press}
             end
         
@@ -474,7 +478,7 @@ define
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            NbThreads = 2
+            NbThreads = 24
             {LaunchThreads SeparatedWordsPort SeparatedWordsStream NbThreads}
 
             {InputText set(1:"")}
