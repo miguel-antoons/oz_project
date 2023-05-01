@@ -13,6 +13,23 @@ define
     OutputWord
     Tree
 
+    %%% DEBUG section %%%
+
+    proc {PrintTree Word Children}
+        case Children
+        of nil then
+            skip
+        [] H|T then
+            if H.word == Word then
+                {Browse H}
+            else
+                {PrintTree Word T}
+            end
+        end
+    end
+
+    %%% ? UTILITIES SECTION * %%%
+
     %%% Pour ouvrir les fichiers
     class TextFile
         from Open.file Open.text
@@ -22,29 +39,6 @@ define
         {Browser.browse Buf}
     end
 
-
-    %%% /!\ Fonction testee /!\
-    %%% @pre : les threads sont "ready"
-    %%% @post: Fonction appellee lorsqu on appuie sur le bouton de prediction
-    %%%        Affiche la prediction la plus probable du prochain mot selon les deux derniers mots entres
-    %%% @return: Retourne une liste contenant la liste du/des mot(s) le(s) plus probable(s) accompagnee de 
-    %%%          la probabilite/frequence la plus elevee. 
-    %%%          La valeur de retour doit prendre la forme:
-    %%%                  <return_val> := <most_probable_words> '|' <probability/frequence> '|' nil
-    %%%                  <most_probable_words> := <atom> '|' <most_probable_words> 
-    %%%                                           | nil
-    %%%                  <probability/frequence> := <int> | <float>
-    fun {Press}
-        WordString Word
-    in
-        % get word
-        {InputWord get(1:WordString)}
-        % {String.toAtom WordString Word}
-        Word = {SentenceToWords WordString}
-        {Browse Tree}
-        {Browse Word}
-        0
-    end
 
     fun {Append L1 L2}
         case L1
@@ -60,6 +54,222 @@ define
         [] H|T then {ArrayLen T Len+1}
         end
     end
+
+
+    %%% funtion adds a list to a list of lists
+    fun {AppendListOfList LoL L}
+        case LoL
+        of nil then [L]
+        [] H|T then H|{AppendListOfList T L}
+        end
+    end
+
+
+    %%% ? PRESS BUTTON SECTION * %%%
+
+    %%% funtion searches for the most frequently used words following a sequence of words
+    fun {Search WordSequence RootChildren}
+        %%% returns the most frequently used words from a following other words
+        fun {GetResult Children Result}
+            % if there are no more children
+            case Children
+            of nil then
+                % return the result as is
+                Result
+            [] H|T then
+                % if the result is empty
+                case Result
+                of nil then
+                    % simply add the current word information as the result
+                    {GetResult T ({String.toAtom H.word}|nil)|H.freq|nil}
+                [] H2|T2 then
+                    {Browse T2}
+                    % if we found a child whose frequency is higher than the current result
+                    if T2.1 < H.freq then
+                        % replace the result with the current word information
+                        {GetResult T ({String.toAtom H.word}|nil)|H.freq|nil}
+                    % if we found a child whose frequency is equal to the current result
+                    elseif H.freq == T2.1 then
+                        % add the current word information to the result
+                        {GetResult T {Append H2 {String.toAtom H.word}|nil}|T2}
+                    else
+                        {GetResult T Result}
+                    end
+                end
+            end
+        end
+    in
+        case WordSequence
+        of nil then
+            % if we are at the children of the last inputted word, return the most frequently used words
+            {GetResult RootChildren nil}
+        [] H|T then
+            % if the current word is not in the children
+            case RootChildren
+            of nil then
+                % return an a 'notFound' atom
+                notFound
+            [] H2|T2 then
+                % if the word searched is equal to the current word
+                if H == H2.word then
+                    % search the next word in the children of the current word
+                    {Search T H2.children}
+                else                    
+                    {Search WordSequence T2}
+                end
+            end
+        end
+    end
+
+
+    %%% /!\ Fonction testee /!\
+    %%% @pre : les threads sont "ready"
+    %%% @post: Fonction appellee lorsqu on appuie sur le bouton de prediction
+    %%%        Affiche la prediction la plus probable du prochain mot selon les deux derniers mots entres
+    %%% @return: Retourne une liste contenant la liste du/des mot(s) le(s) plus probable(s) accompagnee de 
+    %%%          la probabilite/frequence la plus elevee. 
+    %%%          La valeur de retour doit prendre la forme:
+    %%%                  <return_val> := <most_probable_words> '|' <probability/frequence> '|' nil
+    %%%                  <most_probable_words> := <atom> '|' <most_probable_words> 
+    %%%                                           | nil
+    %%%                  <probability/frequence> := <int> | <float>
+    fun {Press}
+        WordString Word Result
+    in
+        % get word
+        {InputWord get(1:WordString)}
+        % {String.toAtom WordString Word}
+        {PrintTree "like" Tree.children}
+        {Browse Tree}
+
+        case WordString
+        of nil then
+            {OutputWord set(1:"no word entered")}
+            nil|0|nil
+        [] H|T then
+            Result = {Search {SentenceToWords WordString} Tree.children}
+
+            case Result
+            of notFound then
+                {OutputWord set(1:"not found")}
+            [] H|T then
+                {OutputWord set(1:Result.1.1)}
+            end
+            {Browse Result}
+            
+            Result
+        end
+    end
+
+
+    %%% ? PARSE SECTION * %%%
+
+    %%% funtion parses a sentence into a list of words
+    fun {SentenceToWords Sentence}
+        fun {SentenceToWordsAux S Word Result}
+            case S
+            of nil then {AppendListOfList Result Word}
+            [] H|T then
+                if {Char.isAlpha H} then
+                    {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
+                else
+                    if {Char.isSpace H} then
+                        % Don't add the word if it's empty
+                        if Word == nil orelse {String.toAtom Word} == amp then
+                            {SentenceToWordsAux T nil Result}
+                        else
+                            {SentenceToWordsAux T nil {AppendListOfList Result Word}}
+                        end
+                    elseif {Char.isPunct H} then
+                            % Don't add the word if it's empty
+                        if Word == nil orelse {String.toAtom Word} == amp then
+                            {SentenceToWordsAux T nil Result}
+                        else
+                            {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
+                        end
+                    else
+                        {SentenceToWordsAux T Word Result}
+                    end
+                end
+            end
+        end
+    in 
+        case Sentence
+        of nil then nil
+        [] H|T then
+            {SentenceToWordsAux T {Char.toLower H}|nil nil}
+        end
+    end
+
+
+    %%% thread that divides a sentence into tri grams
+    fun {GetThreeWords List}
+        fun {GetThreeWordsAux L Three Result Count PastList}
+            case L
+            of nil then Result
+            [] H|T then
+                case PastList
+                of nil then Result
+                [] H2|T2 then
+                    if {ArrayLen H 0} == 1 then
+                        if {Char.isPunct H.1} then
+                            case T 
+                            of nil then Result
+                            [] H3|T3 then 
+                                {GetThreeWordsAux T nil Result 0 T3}
+                            end
+                        else
+                            {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1 PastList}
+                        end
+                    else
+                        if Count == 2 then
+                            {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
+                        else
+                            {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1 PastList}
+                        end
+                    end
+                end
+            end
+        end
+    in
+        case List
+        of nil then nil
+        [] H|T then
+            {GetThreeWordsAux List nil nil 0 T}
+        end
+    end
+
+
+    %%% Thread that parses the lines
+    proc {ParseText Lines Port}
+        List Words
+    in
+        case Lines % lines to line
+        of nil then skip
+        [] H|T then
+            List = {SentenceToWords H}
+            Words = {GetThreeWords List}
+            for Word in Words do
+                {Send Port Word}
+            end
+            {ParseText T Port}
+        end
+    end
+
+    %% Thread that parses the lines and sends the result to the port
+    proc {ParseThread TextLines Port}
+        % if there are no more lines to parse, send a finish message to the port
+        case TextLines
+        of nil then
+            {Send Port finish}
+        [] H|T then
+            % parse the file text and go to the next text
+            {ParseText H Port}
+            {ParseThread T Port}
+        end
+    end
+
+    %%% ? READ SECTION * %%%
 
     %%% funtion reads a file line per line and addds each line at the end of the Tunnel stream
     fun {ReadFile TextFile}
@@ -97,112 +307,8 @@ define
         end
     end
 
-    fun {AppendListOfList LoL L}
-        case LoL
-        of nil then [L]
-        [] H|T then H|{AppendListOfList T L}
-        end
-     end
 
-    fun {SentenceToWords Sentence}
-        fun {SentenceToWordsAux S Word Result}
-            case S
-            of nil then Result
-            [] H|T then
-                if {Char.isAlpha H} then
-                    {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
-                else
-                    if {Char.isSpace H} then
-                        {SentenceToWordsAux T nil {AppendListOfList Result Word}}
-                    elseif {Char.isPunct H} then
-                        {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
-                    else
-                        {SentenceToWordsAux T Word Result}
-                    end
-                end
-            end
-        end
-    in 
-        case Sentence
-        of nil then nil
-        [] H|T then
-            {SentenceToWordsAux T {Char.toLower H}|nil nil}
-        end
-    end
-
-    fun {GetThreeWords List}
-        fun {GetThreeWordsAux L Three Result Count PastList}
-            case L
-            of nil then Result
-            [] H|T then
-                case PastList
-                of nil then Result
-                [] H2|T2 then
-                    if {ArrayLen H 0} == 1 then
-                        if {Char.isPunct H.1} then
-                            case T 
-                            of nil then Result
-                            [] H3|T3 then 
-                                {GetThreeWordsAux T nil Result 0 T3}
-                            end
-                        else
-                            {GetThreeWordsAux T Three Result Count PastList}
-                        end
-                    elseif H == nil then
-                        {GetThreeWordsAux T Three Result Count PastList}
-                    else
-                        if Count == 2 then
-                            {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
-                        else
-                            {Browse {String.toAtom H}}
-                            {Delay 500}
-                            {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1 PastList}
-                        end
-                    end
-                end
-            end
-        end
-    in
-        case List
-        of nil then nil
-        [] H|T then
-            {GetThreeWordsAux List nil nil 0 T}
-        end
-    end
-
-    proc {ParseText Lines Port}
-        List Words
-    in
-        case Lines % lines to line
-        of nil then skip
-        [] H|T then
-            List = {SentenceToWords H}
-            Words = {GetThreeWords List}
-            for Word in Words do
-                {Send Port Word}
-            end
-            {ParseText T Port}
-        end
-    end
-
-    %% Thread that parses the lines and sends the result to the port
-    proc {ParseThread TextLines Port}
-        case TextLines
-        of nil then skip
-        [] H|T then
-            {ParseText H Port}
-        end
-        {Send Port finish}
-    end
-
-    %%% Funtion launches the reader and parsing thread and creates a stream between them
-    proc {LaunchThreadPair Files Port Stream N ThreadNumber}
-        Lines % stream that will contain the lines of the files
-    in
-        thread Lines = {ReadThread Files N ThreadNumber 0} end
-        thread {ParseThread Lines Port} end
-    end
-
+    %%% ? SAVER THREAD SECTION * %%%
 
     %%% Function adds a trigram to the tree.
     %%% It does so by taking the first word of the sequence and checking if it is already present in the tree.
@@ -237,6 +343,8 @@ define
 
     %%% Thread that saves the result of the parsing into a tree
     fun {SaverThread Stream Root N Count}
+        NewCount
+    in
         % if the stream is empty, return the root and add il to the children to indicate its an array
         case Stream
         of nil then
@@ -244,18 +352,34 @@ define
         % if there are still elements in the stream, add the trigram to the tree and do a recursion
         % in order to keep the root node updated
         [] H|T then
-            {Browse H}
+            % check if a thread has finished
             if H == finish then
-                if Count == N then
+                NewCount = Count+1
+
+                % check if all the threads have finished
+                if NewCount == N then
+                    % if they have, just return the root
                     Root
                 else
-                    {SaverThread T Root N Count+1}
+                    {SaverThread T Root N NewCount}
                 end
             else
                 {SaverThread T node(freq:Root.freq word:Root.word children:{AddTriGram H Root.children}) N Count}
             end
         end
     end
+
+
+    %%% ? THREAD LAUNCHING SECTION * %%%
+
+    %%% Funtion launches the reader and parsing thread and creates a stream between them
+    proc {LaunchThreadPair Files Port Stream N ThreadNumber}
+        Lines % stream that will contain the lines of the files
+    in
+        thread Lines = {ReadThread Files N ThreadNumber 0} end
+        thread {ParseThread Lines Port} end
+    end
+
 
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
@@ -265,7 +389,7 @@ define
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
 
-        for I1 in 0..N do
+        for I1 in 0..N-1 do
             {LaunchThreadPair List Port Stream N I1}
         end
 
