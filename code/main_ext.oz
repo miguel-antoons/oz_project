@@ -42,14 +42,17 @@ define
         [] H|T then
             Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
             case Result
-            of notFound then
-                {OutputWord set(1:"No prediction was found. Try again...")}
-            else
-                {OutputWord set(1:Result.1.1)}
+            of H|T then
+                case H
+                of nil then
+                    {OutputWord set(1:"No prediction was found. Try again...")}
+                else
+                    {OutputWord set(1:Result.1.1)}
+                end
             end
+            
+            Result
         end
-        
-        Result
     end
 
     InputText
@@ -96,7 +99,7 @@ define
             case RootChildren
             of nil then
                 % return an a 'notFound' atom
-                notFound
+                nil|0|nil
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
@@ -189,7 +192,7 @@ define
                         if Word == nil orelse {String.toAtom Word} == amp then
                             {SentenceToWordsAux T nil Result}
                         else
-                            {SentenceToWordsAux T nil {AppendListOfList Result Word}}
+                            {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
                         end
                     else
                         {SentenceToWordsAux T Word Result}
@@ -257,6 +260,9 @@ define
         [] H|T then
             List = {SentenceToWords H}
             Words = {GetThreeWords List}
+            for Word in Words do
+                {Send Port Word}
+            end
             {ParseText T Port}
         end
     end
