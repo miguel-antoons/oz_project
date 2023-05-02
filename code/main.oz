@@ -168,11 +168,10 @@ define
 
             case Result
             of notFound then
-                {OutputWord set(1:"not found")}
+                {OutputWord set(1:"No prediction was found. Please try again")}
             [] H|T then
                 {OutputWord set(1:Result.1.1)}
             end
-            {Browse Result}
             
             Result
         end
@@ -474,13 +473,14 @@ define
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
             InputWord = InputText
+            OutputWord = OutputText
 
             % Function that is called upon the predict button press
             proc {PressButton}
-                A B C
+                PredictionResult
             in
                 {OutputText set(1:"Waiting for threads to finish,. Please wait ...")}
-                B = {Press}
+                PredictionResult = {Press}
             end
         
             % Creation de la fenetre
@@ -498,9 +498,6 @@ define
             Tree = {SaverThread SeparatedWordsStream node(freq:0 word:0 children:nil) NbThreads 0}
 
             {InputText set(1:"")}
-
-            InputWord = InputText
-            OutputWord = OutputText
         end
     end
     % Appelle la procedure principale
