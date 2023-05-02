@@ -65,6 +65,27 @@ define
     end
 
 
+    %%% funtion gets last 2 items of a list
+    fun {Get2Last List}
+        case List
+        of H|T then
+            case T
+            of H2|T2 then
+                case T2
+                of nil then
+                    List
+                else
+                    {Get2Last T}
+                end
+            else
+                List
+            end
+        else
+            List
+        end
+    end
+
+
     %%% ? PRESS BUTTON SECTION * %%%
 
     %%% funtion searches for the most frequently used words following a sequence of words
@@ -143,7 +164,7 @@ define
             {OutputWord set(1:"no word entered")}
             nil|0|nil
         [] H|T then
-            Result = {Search {SentenceToWords WordString} Tree.children}
+            Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
 
             case Result
             of notFound then
