@@ -384,7 +384,6 @@ define
             % check if a thread has finished
             if H == finish then
                 NewCount = Count+1
-
                 % check if all the threads have finished
                 if NewCount == N then
                     % if they have, just return the root
@@ -402,7 +401,7 @@ define
     %%% ? THREAD LAUNCHING SECTION * %%%
 
     %%% Funtion launches the reader and parsing thread and creates a stream between them
-    proc {LaunchThreadPair Files Port Stream N ThreadNumber}
+    proc {LaunchThreadPair Files Port N ThreadNumber}
         Lines % stream that will contain the lines of the files
     in
         thread Lines = {ReadThread Files N ThreadNumber 0} end
@@ -412,17 +411,15 @@ define
 
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
-    proc {LaunchThreads Port Stream N}
+    proc {LaunchThreads Port N}
         Arg File List Text TextList S1
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
 
         for I1 in 0..N-1 do
-            {LaunchThreadPair List Port Stream N I1}
+            {LaunchThreadPair List Port N I1}
         end
-
-        thread Tree = {SaverThread Stream node(freq:0 word:0 children:nil) N 0} {Browse finish} end
     end
 
 
@@ -495,8 +492,10 @@ define
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            NbThreads = 2
-            {LaunchThreads SeparatedWordsPort SeparatedWordsStream NbThreads}
+            NbThreads = 4
+            {LaunchThreads SeparatedWordsPort NbThreads}
+
+            Tree = {SaverThread SeparatedWordsStream node(freq:0 word:0 children:nil) NbThreads 0}
 
             {InputText set(1:"")}
 
