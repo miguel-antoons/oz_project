@@ -65,6 +65,27 @@ define
     end
 
 
+    %%% funtion gets last 2 items of a list
+    fun {Get2Last List}
+        case List
+        of H|T then
+            case T
+            of H2|T2 then
+                case T2
+                of nil then
+                    List
+                else
+                    {Get2Last T}
+                end
+            else
+                List
+            end
+        else
+            List
+        end
+    end
+
+
     %%% ? PRESS BUTTON SECTION * %%%
 
     %%% funtion searches for the most frequently used words following a sequence of words
@@ -135,25 +156,22 @@ define
     fun {Press}
         WordString Word Result
     in
-        {Browse Tree}
         % get word
         {InputWord get(1:WordString)}
-        
 
         case WordString
         of nil then
             {OutputWord set(1:"no word entered")}
             nil|0|nil
         [] H|T then
-            Result = {Search {SentenceToWords WordString} Tree.children}
+            Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
 
             case Result
             of notFound then
-                {OutputWord set(1:"not found")}
+                {OutputWord set(1:"No prediction was found. Please try again")}
             [] H|T then
                 {OutputWord set(1:Result.1.1)}
             end
-            {Browse Result}
             
             Result
         end
@@ -365,7 +383,6 @@ define
             % check if a thread has finished
             if H == finish then
                 NewCount = Count+1
-
                 % check if all the threads have finished
                 if NewCount == N then
                     % if they have, just return the root
@@ -383,7 +400,7 @@ define
     %%% ? THREAD LAUNCHING SECTION * %%%
 
     %%% Funtion launches the reader and parsing thread and creates a stream between them
-    proc {LaunchThreadPair Files Port Stream N ThreadNumber}
+    proc {LaunchThreadPair Files Port N ThreadNumber}
         Lines % stream that will contain the lines of the files
     in
         thread Lines = {ReadThread Files N ThreadNumber 0} end
@@ -393,17 +410,15 @@ define
 
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
-    proc {LaunchThreads Port Stream N}
+    proc {LaunchThreads Port N}
         Arg File List Text TextList S1
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
 
         for I1 in 0..N-1 do
-            {LaunchThreadPair List Port Stream N I1}
+            {LaunchThreadPair List Port N I1}
         end
-
-        thread Tree = {SaverThread Stream node(freq:0 word:0 children:nil) N 0} end
     end
 
 
@@ -458,15 +473,14 @@ define
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
             InputWord = InputText
+            OutputWord = OutputText
 
             % Function that is called upon the predict button press
             proc {PressButton}
-                A B C
+                PredictionResult
             in
-                {InputText get(A)}
-                {String.toAtom A C}
-                {OutputText set(1:C)}
-                B = {Press}
+                {OutputText set(1:"Searching predictions... Please wait.")}
+                PredictionResult = {Press}
             end
         
             % Creation de la fenetre
@@ -478,13 +492,12 @@ define
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            NbThreads = 24
-            {LaunchThreads SeparatedWordsPort SeparatedWordsStream NbThreads}
+            NbThreads = 4
+            {LaunchThreads SeparatedWordsPort NbThreads}
+
+            Tree = {SaverThread SeparatedWordsStream node(freq:0 word:0 children:nil) NbThreads 0}
 
             {InputText set(1:"")}
-
-            InputWord = InputText
-            OutputWord = OutputText
         end
     end
     % Appelle la procedure principale
