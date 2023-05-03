@@ -18,10 +18,11 @@ all : $(ENTRY_POINT)
 run: $(ENTRY_POINT)
 	$(OZENGINE) $(ENTRY_POINT) --folder $(TWEETS_FOLDER)
 
-read: reading.ozf
-
 clean :
 	rm -f *.ozf
 
 test: $(ENTRY_POINT)
 	$(OZENGINE) $(ENTRY_POINT) --folder test_folder
+
+extension: main_ext.ozf
+	$(OZENGINE) main_ext.ozf --folder test_folder

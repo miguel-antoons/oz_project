@@ -39,12 +39,14 @@ define
         case WordString
         of nil then
             {OutputWord set(1:"no word entered")}
+            notFound
         [] H|T then
-            Result = {Search {GetNLast {SentenceToWords WordString} nil 3 0} Tree.children}
+            Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
+
             case Result
             of notFound then
-                {OutputWord set(1:"No prediction was found. Try again...")}
-            else
+                {OutputWord set(1:"No prediction was found. Please try again.")}
+            [] H|T then
                 {OutputWord set(1:Result.1.1)}
             end
         end
@@ -95,7 +97,7 @@ define
             case RootChildren
             of nil then
                 % return an a 'notFound' atom
-                nil|0|nil
+                notFound
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
@@ -138,16 +140,22 @@ define
 
 
     %%% funtion gets last 2 items of a list
-    fun {GetNLast List ResultAcc Max Count}
+    fun {Get2Last List}
         case List
-        of nil then
-            ResultAcc
-        [] H|T then
-            if Count < Max then
-                {GetNLast T {Append ResultAcc H} Max Count+1}
+        of H|T then
+            case T
+            of H2|T2 then
+                case T2
+                of nil then
+                    List
+                else
+                    {Get2Last T}
+                end
             else
-                {GetNLast T ResultAcc Max Count+1}
+                List
             end
+        else
+            List
         end
     end
 
@@ -214,14 +222,14 @@ define
                                 {GetThreeWordsAux T nil Result 0 T3}
                             end
                         else
-                            if Count == 3 then
+                            if Count == 2 then
                                 {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
                             else
                                 {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1 PastList}
                             end
                         end
                     else
-                        if Count == 3 then
+                        if Count == 2 then
                             % Add Three words to the result
                             {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
                         else
