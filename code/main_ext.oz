@@ -165,7 +165,7 @@ define
                     {AppendListOfList Result Word}
                 end
             [] H|T then
-                if {Char.isAlpha H} then
+                if {Char.isAlpha H} orelse {Char.isDigit H} then
                     % Add the character to the word
                     {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
                 else
