@@ -42,7 +42,7 @@ define
         [] H|T then
             Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
             case Result
-            of notFound then
+            of [[nil] 0] then
                 {OutputWord set(1:"No prediction was found. Try again...")}
             else
                 {OutputWord set(1:Result.1.1)}
@@ -96,7 +96,7 @@ define
             case RootChildren
             of nil then
                 % return an a 'notFound' atom
-                notFound
+                [[nil] 0]
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
@@ -172,7 +172,7 @@ define
                     {AppendListOfList Result Word}
                 end
             [] H|T then
-                if {Char.isAlpha H} then
+                if {Char.isAlpha H} orelse {Char.isDigit H} then
                     % Add the character to the word
                     {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
                 else
@@ -215,11 +215,7 @@ define
                 [] H2|T2 then
                     if {ArrayLen H 0} == 1 then
                         if {Char.isPunct H.1} then
-                            case T 
-                            of nil then Result
-                            [] H3|T3 then 
-                                {GetThreeWordsAux T nil Result 0 T3}
-                            end
+                            {GetThreeWordsAux PastList Three Result Count T2}
                         else
                             if Count == 2 then
                                 {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
@@ -247,16 +243,18 @@ define
         end
     end
 
-
     %%% Thread that parses the lines
     proc {ParseText Lines Port}
-        List Words
+        List Words WriteFile
     in
         case Lines % lines to line
         of nil then skip
         [] H|T then
             List = {SentenceToWords H}
             Words = {GetThreeWords List}
+            for Word in Words do
+                {Send Port Word}
+            end
             {ParseText T Port}
         end
     end
@@ -468,7 +466,7 @@ define
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            NbThreads = 4
+            NbThreads = 1
             {LaunchThreads SeparatedWordsPort NbThreads}
 
             Tree = {SaverThread SeparatedWordsStream node(freq:0 word:0 children:nil) NbThreads 0}
