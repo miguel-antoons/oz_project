@@ -179,14 +179,7 @@ define
                     % Add the word to the result
                     if {Char.isSpace H} then
                         % Don't add the word if it's empty
-                        if Word == nil orelse {String.toAtom Word} == amp then
-                            {SentenceToWordsAux T nil Result}
-                        else
-                            {SentenceToWordsAux T nil {AppendListOfList Result Word}}
-                        end
-                    elseif {Char.isPunct H} then
-                        % Don't add the word if it's empty
-                        if Word == nil orelse {String.toAtom Word} == amp then
+                        if Word == nil then
                             {SentenceToWordsAux T nil Result}
                         else
                             {SentenceToWordsAux T nil {AppendListOfList Result Word}}
