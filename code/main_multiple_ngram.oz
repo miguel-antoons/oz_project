@@ -454,6 +454,7 @@ define
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
             OutputWord = OutputText
+            NbNGrams = 3
 
             % Function that is called upon the predict button press
             proc {PressButton}
