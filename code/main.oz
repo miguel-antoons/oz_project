@@ -35,7 +35,6 @@ define
     in
         % get word
         {InputText get(1:WordString)}
-        {Browse Tree}
 
         case WordString
         of nil then
@@ -183,7 +182,7 @@ define
                         if Word == nil then
                             {SentenceToWordsAux T nil Result}
                         else
-                            {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
+                            {SentenceToWordsAux T nil {AppendListOfList Result Word}}
                         end
                     else
                         {SentenceToWordsAux T Word Result}
@@ -245,6 +244,9 @@ define
         of nil then skip
         [] H|T then
             List = {SentenceToWords H}
+            for Word in List do
+                {Browse {String.toAtom Word}}
+            end
             Words = {GetThreeWords List}
             for Word in Words do
                 {Send Port Word}
