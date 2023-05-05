@@ -1,7 +1,6 @@
 functor
 import 
     QTk at 'x-oz://system/wp/QTk.ozf'
-    System
     Application
     Open
     OS
@@ -31,23 +30,22 @@ define
     %%%                                           | nil
     %%%                  <probability/frequence> := <int> | <float>
     fun {Press}
-        WordString Word Result
+        WordString Result
     in
         % get word
         {InputText get(1:WordString)}
-        {Browse Tree}
 
         case WordString
         of nil then
             {OutputWord set(1:"no word entered")}
-        [] H|T then
-            Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
-
+        [] _|_ then
+            {Browse {GetNLast {SentenceToWords WordString} nil MaxNGram 0}}
+            Result = {Search {GetNLast {SentenceToWords WordString} nil MaxNGram 0} Tree.children}
             case Result
-            of [[nil] 0] then
-                {OutputWord set(1:"No prediction was found. Try again...")}
-            else
-                {OutputWord set(1:Result.1.1)}
+            of notFound then
+                {OutputWord set(1:"No prediction was found. Please try again.")}
+            [] H|_ then
+                {OutputWord set(1:H.1)}
             end
         end
         Result
@@ -56,6 +54,7 @@ define
     InputText
     OutputWord
     Tree
+    MaxNGram
 
     %%% funtion searches for the most frequently used words following a sequence of words
     fun {Search WordSequence RootChildren}
@@ -97,7 +96,7 @@ define
             case RootChildren
             of nil then
                 % return an a 'notFound' atom
-                [[nil] 0]
+                notFound
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
@@ -125,7 +124,7 @@ define
     fun {ArrayLen Array Len}
         case Array
         of nil then Len
-        [] H|T then {ArrayLen T Len+1}
+        [] _|T then {ArrayLen T Len+1}
         end
     end
 
@@ -140,22 +139,16 @@ define
 
 
     %%% funtion gets last 2 items of a list
-    fun {Get2Last List}
+    fun {GetNLast List ResultAcc Max Count}
         case List
-        of H|T then
-            case T
-            of H2|T2 then
-                case T2
-                of nil then
-                    List
-                else
-                    {Get2Last T}
-                end
+        of nil then
+            ResultAcc
+        [] H|T then
+            if Count < Max then
+                {GetNLast T {Append ResultAcc H|nil} Max Count+1}
             else
-                List
+                {GetNLast T {Append ResultAcc H|nil}.2 Max Count+1}
             end
-        else
-            List
         end
     end
 
@@ -173,14 +166,21 @@ define
                     {AppendListOfList Result Word}
                 end
             [] H|T then
-                if {Char.isAlpha H} orelse {Char.isDigit H} then
+                if {Char.isAlpha H} then
                     % Add the character to the word
                     {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
                 else
                     % Add the word to the result
                     if {Char.isSpace H} then
                         % Don't add the word if it's empty
-                        if Word == nil then
+                        if Word == nil orelse {String.toAtom Word} == amp then
+                            {SentenceToWordsAux T nil Result}
+                        else
+                            {SentenceToWordsAux T nil {AppendListOfList Result Word}}
+                        end
+                    elseif {Char.isPunct H} then
+                        % Don't add the word if it's empty
+                        if Word == nil orelse {String.toAtom Word} == amp then
                             {SentenceToWordsAux T nil Result}
                         else
                             {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
@@ -206,19 +206,23 @@ define
             [] H|T then
                 case PastList
                 of nil then Result
-                [] H2|T2 then
+                [] _|T2 then
                     if {ArrayLen H 0} == 1 then
                         if {Char.isPunct H.1} then
-                            {GetThreeWordsAux PastList Three Result Count T2}
+                            case T 
+                            of nil then Result
+                            [] _|T3 then 
+                                {GetThreeWordsAux T nil Result 0 T3}
+                            end
                         else
-                            if Count == 2 then
+                            if Count == MaxNGram then
                                 {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
                             else
                                 {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1 PastList}
                             end
                         end
                     else
-                        if Count == 2 then
+                        if Count == MaxNGram then
                             % Add Three words to the result
                             {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
                         else
@@ -232,14 +236,15 @@ define
     in
         case List
         of nil then nil
-        [] H|T then
+        [] _|T then
             {GetThreeWordsAux List nil nil 0 T}
         end
     end
 
+
     %%% Thread that parses the lines
     proc {ParseText Lines Port}
-        List Words WriteFile
+        List Words
     in
         case Lines % lines to line
         of nil then skip
@@ -271,7 +276,7 @@ define
 
     %%% funtion reads a file line per line and addds each line at the end of the Tunnel stream
     fun {ReadFile TextFile}
-        AtEnd NextLine
+        NextLine
     in
         % read the next line and add it to the return value, then make a
         % recursive call to read the next line if there is one
@@ -381,7 +386,7 @@ define
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port N}
-        Arg File List Text TextList S1
+        Arg List
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
@@ -411,8 +416,6 @@ define
     
     %%% Procedure principale qui cree la fenetre et appelle les differentes procedures et fonctions
     proc {Main}
-        TweetsFolder = {GetSentenceFolder}
-    in
         %% Fonction d'exemple qui liste tous les fichiers
         %% contenus dans le dossier passe en Argument.
         %% Inspirez vous en pour lire le contenu des fichiers
@@ -442,13 +445,12 @@ define
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
             OutputWord = OutputText
+            MaxNGram = 3
 
             % Function that is called upon the predict button press
             proc {PressButton}
-                PredictionResult
-            in
                 {OutputText set(1:"Searching predictions... Please wait.")}
-                PredictionResult = {Press}
+                _ = {Press}
             end
         
             % Creation de la fenetre
@@ -460,7 +462,7 @@ define
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            NbThreads = 1
+            NbThreads = 4
             {LaunchThreads SeparatedWordsPort NbThreads}
 
             Tree = {SaverThread SeparatedWordsStream node(freq:0 word:0 children:nil) NbThreads 0}
