@@ -15,6 +15,7 @@ define
 
     proc {Browse Buf}
         {Browser.browse Buf}
+
     end
 
     %%% ? PRESS BUTTON SECTION *
@@ -41,12 +42,11 @@ define
             {OutputWord set(1:"no word entered")}
             notFound
         [] H|T then
-            Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
-
+            Result = {Search {GetNLast {SentenceToWords WordString} nil 3 0} Tree.children}
             case Result
             of notFound then
-                {OutputWord set(1:"No prediction was found. Please try again.")}
-            [] H|T then
+                {OutputWord set(1:"No prediction was found. Try again...")}
+            else
                 {OutputWord set(1:Result.1.1)}
             end
         end
@@ -97,7 +97,7 @@ define
             case RootChildren
             of nil then
                 % return an a 'notFound' atom
-                notFound
+                nil|0|nil
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
@@ -140,22 +140,16 @@ define
 
 
     %%% funtion gets last 2 items of a list
-    fun {Get2Last List}
+    fun {GetNLast List ResultAcc Max Count}
         case List
-        of H|T then
-            case T
-            of H2|T2 then
-                case T2
-                of nil then
-                    List
-                else
-                    {Get2Last T}
-                end
+        of nil then
+            ResultAcc
+        [] H|T then
+            if Count < Max then
+                {GetNLast T {Append ResultAcc H} Max Count+1}
             else
-                List
+                {GetNLast T ResultAcc Max Count+1}
             end
-        else
-            List
         end
     end
 
