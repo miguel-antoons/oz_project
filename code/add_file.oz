@@ -299,7 +299,7 @@ define
                 % initialise the file objcect and read the file
                 NewFile = {New TextFile init(name:{Append {Append {GetSentenceFolder} "/"} H})}
                 % this appends all the lines of the file to the tunnel, each line will be separated
-                if I == 0 andthen {Bool.'not' FileName == nil}  then
+                if I == 0 andthen {Bool.'not' FileName == nil} then
                     % If a custom file is specified, read it and append it to the tunnel
                     try 
                         NewCustomFile = {New TextFile init(name:FileName)} 
@@ -451,7 +451,7 @@ define
         
             % TODO
             % Creation de l'interface open file
-            DialogText = "Voulez-vous ouvrir un fichier ?"
+            DialogText = "Voulez-vous ajouter un fichier texte \n pour ameliorer la prediction ?"
             Dialog=td(
                 title: "Open File"
                 label(text:DialogText width:35 height:5 background:white foreground:black)
@@ -488,6 +488,7 @@ define
             proc {No}
                 {WindowD hide}
                 % Creation de la fenetre
+                FileName = nil
                 Window={QTk.build Description}
                 {Window show}
             end
@@ -497,9 +498,9 @@ define
                 
                 FileName = {QTk.dialogbox load($)}
 
-            % Creation de la fenetre
-            Window={QTk.build Description}
-            {Window show}
+                % Creation de la fenetre
+                Window={QTk.build Description}
+                {Window show}
             end
         
             {InputText tk(insert 'end' "Loading... Please wait.")}
