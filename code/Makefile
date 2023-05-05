@@ -26,3 +26,6 @@ test: $(ENTRY_POINT)
 
 extension: main_ext.ozf
 	$(OZENGINE) main_ext.ozf --folder test_folder
+
+add: add_file.ozf
+	$(OZENGINE) add_file.ozf --folder test_folder
