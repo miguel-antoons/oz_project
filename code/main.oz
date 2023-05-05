@@ -35,11 +35,11 @@ define
     in
         % get word
         {InputText get(1:WordString)}
+        {Browse Tree}
 
         case WordString
         of nil then
             {OutputWord set(1:"no word entered")}
-            notFound
         [] H|T then
             Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
 
