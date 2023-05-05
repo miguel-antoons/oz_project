@@ -40,9 +40,9 @@ define
         of nil then
             {OutputWord set(1:"no word entered")}
         [] H|T then
-            Result = {Search {GetNLast {SentenceToWords WordString} nil 3 0} Tree.children}
+            Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
             case Result
-            of notFound then
+            of [[nil] 0] then
                 {OutputWord set(1:"No prediction was found. Try again...")}
             else
                 {OutputWord set(1:Result.1.1)}
@@ -54,6 +54,7 @@ define
     InputText
     OutputWord
     Tree
+    FileName
 
     %%% funtion searches for the most frequently used words following a sequence of words
     fun {Search WordSequence RootChildren}
@@ -95,7 +96,7 @@ define
             case RootChildren
             of nil then
                 % return an a 'notFound' atom
-                nil|0|nil
+                [[nil] 0]
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
@@ -148,6 +149,26 @@ define
             else
                 {GetNLast T ResultAcc Max Count+1}
             end
+        end
+    end
+
+    %%% funtion gets last 2 items of a list
+    fun {Get2Last List}
+        case List
+        of H|T then
+            case T
+            of H2|T2 then
+                case T2
+                of nil then
+                    List
+                else
+                    {Get2Last T}
+                end
+            else
+                List
+            end
+        else
+            List
         end
     end
 
@@ -293,7 +314,7 @@ define
 
     %%% Thread that reads the files
     fun {ReadThread Files N ThreadNumber I}
-        NewFile
+        NewFile NewCustomFile
     in
         case Files
         of nil then nil
@@ -302,7 +323,12 @@ define
                 % initialise the file objcect and read the file
                 NewFile = {New TextFile init(name:{Append {Append {GetSentenceFolder} "/"} H})}
                 % this appends all the lines of the file to the tunnel, each line will be separated
-                {ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
+                if I == 0 andthen {Bool.'not' FileName == nil}  then
+                    NewCustomFile = {New TextFile init(name:FileName)}
+                    {ReadFile NewCustomFile}|{ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
+                else
+                    {ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
+                end
             else
                 {ReadThread T N ThreadNumber I+1}
             end
@@ -433,15 +459,34 @@ define
             SeparatedWordsStream
             SeparatedWordsPort
             PressButton
+            OpenFile
+            Dialog
+            Yes
+            No
+            WindowD
+            DialogText
         in
             {Property.put print foo(width:1000 depth:1000)}  % for stdout siz
         
             % TODO
+            % Creation de l'interface open file
+            DialogText = "Voulez-vous ouvrir un fichier ?"
+            Dialog=td(
+                title: "Open File"
+                label(text:DialogText width:35 height:5 background:white foreground:black)
+                lr(
+                    button(text:"Oui" width:15 action:Yes)
+                    button(text:"Non" width:15 action:No))
+                action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
+            )
         
             % Creation de l interface graphique
             Description=td(
                 title: "Text predictor"
-                lr(text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) button(text:"Predict" width:15 action:PressButton))
+                lr(
+                    text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) 
+                    button(text:"Predict" width:15 action:PressButton))
+
                 text(handle:OutputText width:50 height:10 background:black foreground:white glue:w wrap:word)
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
@@ -454,10 +499,27 @@ define
                 {OutputText set(1:"Searching predictions... Please wait.")}
                 PredictionResult = {Press}
             end
-        
-            % Creation de la fenetre
-            Window={QTk.build Description}
-            {Window show}
+
+             % Creation de la fenetre dialog
+            WindowD={QTk.build Dialog}
+            {WindowD show}
+            
+            proc {No}
+                {WindowD hide}
+                % Creation de la fenetre
+                Window={QTk.build Description}
+                {Window show}
+            end
+
+            proc {Yes}
+                {WindowD hide}
+                
+                FileName = {QTk.dialogbox load($)}
+
+                % Creation de la fenetre
+                Window={QTk.build Description}
+                {Window show}
+            end
         
             {InputText tk(insert 'end' "Loading... Please wait.")}
             {InputText bind(event:"<Control-s>" action:PressButton)} % You can also bind events

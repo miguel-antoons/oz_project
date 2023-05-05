@@ -25,3 +25,6 @@ clean :
 
 test: $(ENTRY_POINT)
 	$(OZENGINE) $(ENTRY_POINT) --folder test_folder
+
+ext: main_ext.ozf
+	$(OZENGINE) main_ext.ozf --folder "test_folder"
