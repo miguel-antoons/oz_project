@@ -177,16 +177,12 @@ define
                     {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
                 else
                     % Add the word to the result
-                    % if {Char.isSpace H} then
-                        % Don't add the word if it's empty
+                    % Don't add the word if it's empty
                     if Word == nil then
                         {SentenceToWordsAux T nil Result}
                     else
                         {SentenceToWordsAux T nil {AppendListOfList Result Word}}
                     end
-                    % else
-                    %     {SentenceToWordsAux T Word Result}
-                    % end
                 end
             end
         end
@@ -236,7 +232,7 @@ define
         end
     end
 
-     %%% Thread that parses the lines
+    %%% Thread that parses the lines
     proc {ParseText Lines Port Sentences}
         Words WriteFile NewList
     in

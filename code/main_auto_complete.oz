@@ -1,20 +1,14 @@
 functor
 import 
     QTk at 'x-oz://system/wp/QTk.ozf'
-    System
     Application
     Open
     OS
     Property
-    Browser
 define
     %%% Pour ouvrir les fichiers
     class TextFile
         from Open.file Open.text
-    end
-
-    proc {Browse Buf}
-        {Browser.browse Buf}
     end
 
     %%% ? PRESS BUTTON SECTION *
@@ -31,7 +25,7 @@ define
     %%%                                           | nil
     %%%                  <probability/frequence> := <int> | <float>
     fun {Press}
-        WordString Word Result
+        WordString Result
     in
         % get word
         {InputText get(1:WordString)}
@@ -39,7 +33,7 @@ define
         case WordString
         of nil then
             {OutputWord set(1:"no word entered")}
-        [] H|T then
+        [] _|_ then
             Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children nil}
 
             case Result
@@ -79,7 +73,7 @@ define
                     % if we found a child whose frequency is equal to the current result
                     elseif H.freq == T2.1 then
                         % add the current word information to the result
-                        {GetResult T {Append H2 {String.toAtom H.word}|nil}|T2}
+                        {GetResult T {List.append H2 {String.toAtom H.word}|nil}|T2}
                     else
                         {GetResult T Result}
                     end
@@ -95,27 +89,32 @@ define
             % if the current word is not in the children
             case RootChildren
             of nil then
-                case PrimitiveResult
-                of nil then
-                    % return an a 'notFound' atom
-                    [[nil] 0]
-                else
-                    % return the result
-                    PrimitiveResult
+                case WordSequence
+                of _|T2 then
+                    if T2 == nil then
+                        PrimitiveResult
+                    else
+                        [[nil] 0]
+                    end
                 end
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
                     % search the next word in the children of the current word
                     {Search T H2.children nil}
+                % verify if the beginning of the two words are the same
                 elseif {CompareWordStart H H2.word} then
                     case PrimitiveResult
                     of nil then 
+                        % add the word to the primitive result
                         {Search WordSequence T2 ({String.toAtom H2.word}|nil)|H2.freq|nil}
                     [] H3|T3 then
+                        % if the frequency of the current word is higher than the current result
                         if H2.freq > T3.1 then
+                            % replace the result with the current word information
                             {Search WordSequence T2 ({String.toAtom H2.word}|nil)|H2.freq|nil}
                         elseif H2.freq == T3.1 then
+                            % add the current word information to the result
                             {Search WordSequence T2 {List.append H3 {String.toAtom H2.word}|nil}|T3}
                         else
                             {Search WordSequence T2 PrimitiveResult}
@@ -130,8 +129,10 @@ define
 
 
     fun {CompareWordStart Word1 Word2}
-        if Word1 == nil orelse Word2 == nil then
+        if Word1 == nil then
             true
+        elseif Word2 == nil then
+            false
         else
             if Word1.1 == Word2.1 then
                 {CompareWordStart Word1.2 Word2.2}
@@ -144,19 +145,10 @@ define
 
     %%% ? UTILITIES SECTION *
 
-    fun {Append L1 L2}
-        case L1
-        of nil then L2
-        [] H|T then H|{Append T L2}
-        else other
-        end
-    end
-
-
     fun {ArrayLen Array Len}
         case Array
         of nil then Len
-        [] H|T then {ArrayLen T Len+1}
+        [] _|T then {ArrayLen T Len+1}
         end
     end
 
@@ -173,9 +165,9 @@ define
     %%% funtion gets last 2 items of a list
     fun {Get2Last List}
         case List
-        of H|T then
+        of _|T then
             case T
-            of H2|T2 then
+            of _|T2 then
                 case T2
                 of nil then
                     List
@@ -193,8 +185,8 @@ define
 
     %%% ? PARSE SECTION *
 
-    %%% funtion parses a sentence into a list of words
-    fun {SentenceToWords Sentence}
+     %%% funtion parses a sentence into a list of words
+     fun {SentenceToWords Sentence}
         fun {SentenceToWordsAux S Word Result}
             case S
             of nil then
@@ -203,21 +195,17 @@ define
                 else
                     {AppendListOfList Result Word}
                 end
-            [] H|T then
-                if {Char.isAlpha H} orelse {Char.isDigit H} then
-                    % Add the character to the word
-                    {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
+            [] H|T then 
+                if {Char.isDigit H} orelse (H > 64 andthen H < 91) orelse (H > 96 andthen H < 123) then
+                    % Add the character to the word     
+                    {SentenceToWordsAux T {List.append Word {Char.toLower H}|nil} Result}
                 else
                     % Add the word to the result
-                    if {Char.isSpace H} then
-                        % Don't add the word if it's empty
-                        if Word == nil then
-                            {SentenceToWordsAux T nil Result}
-                        else
-                            {SentenceToWordsAux T nil {AppendListOfList Result Word}}
-                        end
+                    % Don't add the word if it's empty
+                    if Word == nil then
+                        {SentenceToWordsAux T nil Result}
                     else
-                        {SentenceToWordsAux T Word Result}
+                        {SentenceToWordsAux T nil {AppendListOfList Result Word}}
                     end
                 end
             end
@@ -225,8 +213,8 @@ define
     in 
         case Sentence
         of nil then nil
-        [] H|T then
-            {SentenceToWordsAux T {Char.toLower H}|nil nil}
+        [] _|_ then
+            {SentenceToWordsAux Sentence nil nil}
         end
     end
 
@@ -237,7 +225,7 @@ define
             [] H|T then
                 case PastList
                 of nil then Result
-                [] H2|T2 then
+                [] _|T2 then
                     if {ArrayLen H 0} == 1 then
                         if {Char.isPunct H.1} then
                             {GetThreeWordsAux PastList Three Result Count T2}
@@ -263,24 +251,24 @@ define
     in
         case List
         of nil then nil
-        [] H|T then
+        [] _|T then
             {GetThreeWordsAux List nil nil 0 T}
         end
     end
 
     %%% Thread that parses the lines
-    proc {ParseText Lines Port}
-        List Words WriteFile
+    proc {ParseText Lines Port Sentences}
+        Words NewList
     in
         case Lines % lines to line
-        of nil then skip
-        [] H|T then
-            List = {SentenceToWords H}
-            Words = {GetThreeWords List}
+        of nil then 
+            Words = {GetThreeWords Sentences}
             for Word in Words do
                 {Send Port Word}
             end
-            {ParseText T Port}
+        [] H|T then
+            NewList = {List.append Sentences {SentenceToWords H}}
+            {ParseText T Port NewList}
         end
     end
 
@@ -292,7 +280,7 @@ define
             {Send Port finish}
         [] H|T then
             % parse the file text and go to the next text
-            {ParseText H Port}
+            {ParseText H Port nil}
             {ParseThread T Port}
         end
     end
@@ -302,7 +290,7 @@ define
 
     %%% funtion reads a file line per line and addds each line at the end of the Tunnel stream
     fun {ReadFile TextFile}
-        AtEnd NextLine
+        NextLine
     in
         % read the next line and add it to the return value, then make a
         % recursive call to read the next line if there is one
@@ -327,7 +315,7 @@ define
         [] H|T then
             if (I mod N) == ThreadNumber then
                 % initialise the file objcect and read the file
-                NewFile = {New TextFile init(name:{Append {Append {GetSentenceFolder} "/"} H})}
+                NewFile = {New TextFile init(name:{List.append {List.append {GetSentenceFolder} "/"} H})}
                 % this appends all the lines of the file to the tunnel, each line will be separated
                 {ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
             else
@@ -412,7 +400,7 @@ define
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port N}
-        Arg File List Text TextList S1
+        Arg List
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
@@ -442,8 +430,6 @@ define
     
     %%% Procedure principale qui cree la fenetre et appelle les differentes procedures et fonctions
     proc {Main}
-        TweetsFolder = {GetSentenceFolder}
-    in
         %% Fonction d'exemple qui liste tous les fichiers
         %% contenus dans le dossier passe en Argument.
         %% Inspirez vous en pour lire le contenu des fichiers
@@ -476,10 +462,8 @@ define
 
             % Function that is called upon the predict button press
             proc {PressButton}
-                PredictionResult
-            in
                 {OutputText set(1:"Searching predictions... Please wait.")}
-                PredictionResult = {Press}
+                _ = {Press}
             end
         
             % Creation de la fenetre
