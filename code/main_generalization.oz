@@ -79,7 +79,7 @@ define
                     % if we found a child whose frequency is equal to the current result
                     elseif H.freq == T2.1 then
                         % add the current word information to the result
-                        {GetResult T {Append H2 {String.toAtom H.word}|nil}|T2}
+                        {GetResult T {List.append H2 {String.toAtom H.word}|nil}|T2}
                     else
                         {GetResult T Result}
                     end
@@ -166,9 +166,9 @@ define
                     {AppendListOfList Result Word}
                 end
             [] H|T then
-                if {Char.isAlpha H} then
+                if {Char.isAlNum H} then
                     % Add the character to the word
-                    {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
+                    {SentenceToWordsAux T {List.append Word {Char.toLower H}|nil} Result}
                 else
                     % Add the word to the result
                     if {Char.isSpace H} then
@@ -195,7 +195,7 @@ define
         case Sentence
         of nil then nil
         [] H|T then
-            {SentenceToWordsAux T {Char.toLower H}|nil nil}
+            {SentenceToWordsAux Sentence nil nil}
         end
     end
 
@@ -301,7 +301,7 @@ define
         [] H|T then
             if (I mod N) == ThreadNumber then
                 % initialise the file objcect and read the file
-                NewFile = {New TextFile init(name:{Append {Append {GetSentenceFolder} "/"} H})}
+                NewFile = {New TextFile init(name:{List.append {List.append {GetSentenceFolder} "/"} H})}
                 % this appends all the lines of the file to the tunnel, each line will be separated
                 {ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
             else

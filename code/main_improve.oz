@@ -166,27 +166,34 @@ define
         fun {SentenceToWordsAux S Word Result}
             case S
             of nil then
-                if Word == nil then
+                if Word == nil orelse {String.toAtom Word} == amp then
                     Result
                 else
                     {AppendListOfList Result Word}
                 end
             [] H|T then 
-                if {Char.isDigit H} orelse (H > 64 andthen H < 91) orelse (H > 96 andthen H < 123) then
-                    % Add the character to the word     
-                    {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
+                if {Char.isAlNum H} then
+                    % Add the character to the word
+                    {SentenceToWordsAux T {List.append Word {Char.toLower H}|nil} Result}
                 else
                     % Add the word to the result
-                    % if {Char.isSpace H} then
+                    if {Char.isSpace H} then
                         % Don't add the word if it's empty
-                    if Word == nil then
-                        {SentenceToWordsAux T nil Result}
+                        if Word == nil orelse {String.toAtom Word} == amp then
+                            {SentenceToWordsAux T nil Result}
+                        else
+                            {SentenceToWordsAux T nil {AppendListOfList Result Word}}
+                        end
+                    elseif {Char.isPunct H} then
+                        % Don't add the word if it's empty
+                        if Word == nil orelse {String.toAtom Word} == amp then
+                            {SentenceToWordsAux T nil Result}
+                        else
+                            {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
+                        end
                     else
-                        {SentenceToWordsAux T nil {AppendListOfList Result Word}}
+                        {SentenceToWordsAux T Word Result}
                     end
-                    % else
-                    %     {SentenceToWordsAux T Word Result}
-                    % end
                 end
             end
         end
@@ -208,7 +215,11 @@ define
                 [] H2|T2 then
                     if {ArrayLen H 0} == 1 then
                         if {Char.isPunct H.1} then
-                            {GetThreeWordsAux PastList Three Result Count T2}
+                            case T 
+                            of nil then Result
+                            [] _|T3 then 
+                                {GetThreeWordsAux T nil Result 0 T3}
+                            end
                         else
                             if Count == 2 then
                                 {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
@@ -236,7 +247,7 @@ define
         end
     end
 
-     %%% Thread that parses the lines
+    %%% Thread that parses the lines
     proc {ParseText Lines Port Sentences}
         Words WriteFile NewList
     in
@@ -270,7 +281,7 @@ define
 
     %%% funtion reads a file line per line and addds each line at the end of the Tunnel stream
     fun {ReadFile TextFile}
-        AtEnd NextLine
+        NextLine
     in
         % read the next line and add it to the return value, then make a
         % recursive call to read the next line if there is one
@@ -380,7 +391,7 @@ define
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port N}
-        Arg File List Text TextList S1
+        Arg List
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
@@ -410,8 +421,6 @@ define
     
     %%% Procedure principale qui cree la fenetre et appelle les differentes procedures et fonctions
     proc {Main}
-        TweetsFolder = {GetSentenceFolder}
-    in
         %% Fonction d'exemple qui liste tous les fichiers
         %% contenus dans le dossier passe en Argument.
         %% Inspirez vous en pour lire le contenu des fichiers
@@ -444,10 +453,8 @@ define
 
             % Function that is called upon the predict button press
             proc {PressButton}
-                PredictionResult
-            in
                 {OutputText set(1:"Searching predictions... Please wait.")}
-                PredictionResult = {Press}
+                _ = {Press}
             end
         
             % Creation de la fenetre
@@ -459,7 +466,7 @@ define
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            NbThreads = 1
+            NbThreads = 4
             {LaunchThreads SeparatedWordsPort NbThreads}
 
             Tree = {SaverThread SeparatedWordsStream node(freq:0 word:0 children:nil) NbThreads 0}

@@ -79,7 +79,7 @@ define
                     % if we found a child whose frequency is equal to the current result
                     elseif H.freq == T2.1 then
                         % add the current word information to the result
-                        {GetResult T {List.append H2 {String.toAtom H.word}|nil}|T2}
+                        {GetResult T {Append H2 {String.toAtom H.word}|nil}|T2}
                     else
                         {GetResult T Result}
                     end
@@ -236,19 +236,19 @@ define
         end
     end
 
-     %%% Thread that parses the lines
-    proc {ParseText Lines Port Sentences}
-        Words WriteFile NewList
+    %%% Thread that parses the lines
+    proc {ParseText Lines Port}
+        List Words WriteFile
     in
         case Lines % lines to line
-        of nil then 
-            Words = {GetThreeWords Sentences}
+        of nil then skip
+        [] H|T then
+            List = {SentenceToWords H}
+            Words = {GetThreeWords List}
             for Word in Words do
                 {Send Port Word}
             end
-        [] H|T then
-            NewList = {List.append Sentences {SentenceToWords H}}
-            {ParseText T Port NewList}
+            {ParseText T Port}
         end
     end
 
@@ -260,7 +260,7 @@ define
             {Send Port finish}
         [] H|T then
             % parse the file text and go to the next text
-            {ParseText H Port nil}
+            {ParseText H Port}
             {ParseThread T Port}
         end
     end
@@ -295,7 +295,7 @@ define
         [] H|T then
             if (I mod N) == ThreadNumber then
                 % initialise the file objcect and read the file
-                NewFile = {New TextFile init(name:{List.append {List.append {GetSentenceFolder} "/"} H})}
+                NewFile = {New TextFile init(name:{Append {Append {GetSentenceFolder} "/"} H})}
                 % this appends all the lines of the file to the tunnel, each line will be separated
                 {ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
             else
