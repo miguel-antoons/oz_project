@@ -49,14 +49,12 @@ define
                 {OutputWord set(1:Result.1.1)}
             end
         end
-
         Result
     end
 
     InputText
     OutputWord
     Tree
-    FileName
 
     %%% funtion searches for the most frequently used words following a sequence of words
     fun {Search WordSequence RootChildren}
@@ -81,7 +79,7 @@ define
                     % if we found a child whose frequency is equal to the current result
                     elseif H.freq == T2.1 then
                         % add the current word information to the result
-                        {GetResult T {List.append H2 {String.toAtom H.word}|nil}|T2}
+                        {GetResult T {Append H2 {String.toAtom H.word}|nil}|T2}
                     else
                         {GetResult T Result}
                     end
@@ -163,7 +161,6 @@ define
 
     %%% ? PARSE SECTION *
 
-   
     %%% funtion parses a sentence into a list of words
     fun {SentenceToWords Sentence}
         fun {SentenceToWordsAux S Word Result}
@@ -240,18 +237,18 @@ define
     end
 
     %%% Thread that parses the lines
-    proc {ParseText Lines Port Sentences}
-        Words WriteFile NewList
+    proc {ParseText Lines Port}
+        List Words WriteFile
     in
         case Lines % lines to line
-        of nil then 
-            Words = {GetThreeWords Sentences}
+        of nil then skip
+        [] H|T then
+            List = {SentenceToWords H}
+            Words = {GetThreeWords List}
             for Word in Words do
                 {Send Port Word}
             end
-        [] H|T then
-            NewList = {List.append Sentences {SentenceToWords H}}
-            {ParseText T Port NewList}
+            {ParseText T Port}
         end
     end
 
@@ -263,10 +260,11 @@ define
             {Send Port finish}
         [] H|T then
             % parse the file text and go to the next text
-            {ParseText H Port nil}
+            {ParseText H Port}
             {ParseThread T Port}
         end
     end
+
     
     %%% ? READ SECTION *
 
@@ -290,26 +288,16 @@ define
 
     %%% Thread that reads the files
     fun {ReadThread Files N ThreadNumber I}
-        NewFile NewCustomFile
+        NewFile
     in
         case Files
         of nil then nil
         [] H|T then
             if (I mod N) == ThreadNumber then
                 % initialise the file objcect and read the file
-                NewFile = {New TextFile init(name:{List.append {List.append {GetSentenceFolder} "/"} H})}
+                NewFile = {New TextFile init(name:{Append {Append {GetSentenceFolder} "/"} H})}
                 % this appends all the lines of the file to the tunnel, each line will be separated
-                if I == 0 andthen {Bool.'not' FileName == nil} then
-                    % If a custom file is specified, read it and append it to the tunnel
-                    try 
-                        NewCustomFile = {New TextFile init(name:FileName)} 
-                        {ReadFile NewCustomFile}|{ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
-                    catch _ then 
-                        {ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
-                    end
-                else
-                    {ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
-                end
+                {ReadFile NewFile}|{ReadThread T N ThreadNumber I+1}
             else
                 {ReadThread T N ThreadNumber I+1}
             end
@@ -440,34 +428,15 @@ define
             SeparatedWordsStream
             SeparatedWordsPort
             PressButton
-            OpenFile
-            Dialog
-            Yes
-            No
-            WindowD
-            DialogText
         in
             {Property.put print foo(width:1000 depth:1000)}  % for stdout siz
         
             % TODO
-            % Creation de l'interface open file
-            DialogText = "Voulez-vous ajouter un fichier texte \n pour ameliorer la prediction ?"
-            Dialog=td(
-                title: "Open File"
-                label(text:DialogText width:35 height:5 background:white foreground:black)
-                lr(
-                    button(text:"Oui" width:15 action:Yes)
-                    button(text:"Non" width:15 action:No))
-                action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
-            )
         
             % Creation de l interface graphique
             Description=td(
                 title: "Text predictor"
-                lr(
-                    text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) 
-                    button(text:"Predict" width:15 action:PressButton))
-
+                lr(text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) button(text:"Predict" width:15 action:PressButton))
                 text(handle:OutputText width:50 height:10 background:black foreground:white glue:w wrap:word)
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
@@ -481,34 +450,16 @@ define
                 PredictionResult = {Press}
             end
         
-             % Creation de la fenetre dialog
-            WindowD={QTk.build Dialog}
-            {WindowD show}
-            
-            proc {No}
-                {WindowD hide}
-                % Creation de la fenetre
-                FileName = nil
-                Window={QTk.build Description}
-                {Window show}
-            end
-
-            proc {Yes}
-                {WindowD hide}
-                
-                FileName = {QTk.dialogbox load($)}
-
-                % Creation de la fenetre
-                Window={QTk.build Description}
-                {Window show}
-            end
+            % Creation de la fenetre
+            Window={QTk.build Description}
+            {Window show}
         
             {InputText tk(insert 'end' "Loading... Please wait.")}
             {InputText bind(event:"<Control-s>" action:PressButton)} % You can also bind events
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            NbThreads = 4
+            NbThreads = 1
             {LaunchThreads SeparatedWordsPort NbThreads}
 
             Tree = {SaverThread SeparatedWordsStream node(freq:0 word:0 children:nil) NbThreads 0}
