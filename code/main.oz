@@ -1,20 +1,14 @@
 functor
 import 
     QTk at 'x-oz://system/wp/QTk.ozf'
-    System
     Application
     Open
     OS
     Property
-    Browser
 define
     %%% Pour ouvrir les fichiers
     class TextFile
         from Open.file Open.text
-    end
-
-    proc {Browse Buf}
-        {Browser.browse Buf}
     end
 
     %%% ? PRESS BUTTON SECTION *
@@ -31,7 +25,7 @@ define
     %%%                                           | nil
     %%%                  <probability/frequence> := <int> | <float>
     fun {Press}
-        WordString Word Result
+        WordString Result
     in
         % get word
         {InputText get(1:WordString)}
@@ -39,7 +33,7 @@ define
         case WordString
         of nil then
             {OutputWord set(1:"no word entered")}
-        [] H|T then
+        [] _|_ then
             Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
 
             case Result
@@ -112,19 +106,10 @@ define
 
     %%% ? UTILITIES SECTION *
 
-    fun {Append L1 L2}
-        case L1
-        of nil then L2
-        [] H|T then H|{Append T L2}
-        else other
-        end
-    end
-
-
     fun {ArrayLen Array Len}
         case Array
         of nil then Len
-        [] H|T then {ArrayLen T Len+1}
+        [] _|T then {ArrayLen T Len+1}
         end
     end
 
@@ -141,9 +126,9 @@ define
     %%% funtion gets last 2 items of a list
     fun {Get2Last List}
         case List
-        of H|T then
+        of _|T then
             case T
-            of H2|T2 then
+            of _|T2 then
                 case T2
                 of nil then
                     List
@@ -189,7 +174,7 @@ define
     in 
         case Sentence
         of nil then nil
-        [] H|T then
+        [] _|_ then
             {SentenceToWordsAux Sentence nil nil}
         end
     end
@@ -201,7 +186,7 @@ define
             [] H|T then
                 case PastList
                 of nil then Result
-                [] H2|T2 then
+                [] _|T2 then
                     if {ArrayLen H 0} == 1 then
                         if {Char.isPunct H.1} then
                             {GetThreeWordsAux PastList Three Result Count T2}
@@ -227,14 +212,14 @@ define
     in
         case List
         of nil then nil
-        [] H|T then
+        [] _|T then
             {GetThreeWordsAux List nil nil 0 T}
         end
     end
 
     %%% Thread that parses the lines
     proc {ParseText Lines Port Sentences}
-        Words WriteFile NewList
+        Words NewList
     in
         case Lines % lines to line
         of nil then 
@@ -266,7 +251,7 @@ define
 
     %%% funtion reads a file line per line and addds each line at the end of the Tunnel stream
     fun {ReadFile TextFile}
-        AtEnd NextLine
+        NextLine
     in
         % read the next line and add it to the return value, then make a
         % recursive call to read the next line if there is one
@@ -376,7 +361,7 @@ define
     %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port N}
-        Arg File List Text TextList S1
+        Arg List
     in
         Arg = {GetSentenceFolder}
         List = {OS.getDir Arg}
@@ -406,8 +391,6 @@ define
     
     %%% Procedure principale qui cree la fenetre et appelle les differentes procedures et fonctions
     proc {Main}
-        TweetsFolder = {GetSentenceFolder}
-    in
         %% Fonction d'exemple qui liste tous les fichiers
         %% contenus dans le dossier passe en Argument.
         %% Inspirez vous en pour lire le contenu des fichiers
@@ -440,10 +423,8 @@ define
 
             % Function that is called upon the predict button press
             proc {PressButton}
-                PredictionResult
-            in
                 {OutputText set(1:"Searching predictions... Please wait.")}
-                PredictionResult = {Press}
+                _ = {Press}
             end
         
             % Creation de la fenetre
@@ -455,7 +436,7 @@ define
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            NbThreads = 1
+            NbThreads = 2
             {LaunchThreads SeparatedWordsPort NbThreads}
 
             Tree = {SaverThread SeparatedWordsStream node(freq:0 word:0 children:nil) NbThreads 0}

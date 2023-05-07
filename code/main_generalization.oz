@@ -5,15 +5,10 @@ import
     Open
     OS
     Property
-    Browser
 define
     %%% Pour ouvrir les fichiers
     class TextFile
         from Open.file Open.text
-    end
-
-    proc {Browse Buf}
-        {Browser.browse Buf}
     end
 
     %%% ? PRESS BUTTON SECTION *
@@ -39,13 +34,13 @@ define
         of nil then
             {OutputWord set(1:"no word entered")}
         [] _|_ then
-            {Browse {GetNLast {SentenceToWords WordString} nil MaxNGram 0}}
             Result = {Search {GetNLast {SentenceToWords WordString} nil MaxNGram 0} Tree.children}
+
             case Result
-            of notFound then
+            of [[nil] 0] then
                 {OutputWord set(1:"No prediction was found. Please try again.")}
-            [] H|_ then
-                {OutputWord set(1:H.1)}
+            else
+                {OutputWord set(1:Result.1.1)}
             end
         end
         Result
@@ -96,7 +91,7 @@ define
             case RootChildren
             of nil then
                 % return an a 'notFound' atom
-                notFound
+                [[nil] 0]
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
@@ -111,15 +106,6 @@ define
 
 
     %%% ? UTILITIES SECTION *
-
-    fun {Append L1 L2}
-        case L1
-        of nil then L2
-        [] H|T then H|{Append T L2}
-        else other
-        end
-    end
-
 
     fun {ArrayLen Array Len}
         case Array
@@ -160,33 +146,22 @@ define
         fun {SentenceToWordsAux S Word Result}
             case S
             of nil then
-                if Word == nil orelse {String.toAtom Word} == amp then
+                if Word == nil then
                     Result
                 else
                     {AppendListOfList Result Word}
                 end
-            [] H|T then
-                if {Char.isAlNum H} then
-                    % Add the character to the word
-                    {SentenceToWordsAux T {List.append Word {Char.toLower H}|nil} Result}
+            [] H|T then 
+                if {Char.isDigit H} orelse (H > 64 andthen H < 91) orelse (H > 96 andthen H < 123) then
+                    % Add the character to the word     
+                    {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
                 else
                     % Add the word to the result
-                    if {Char.isSpace H} then
-                        % Don't add the word if it's empty
-                        if Word == nil orelse {String.toAtom Word} == amp then
-                            {SentenceToWordsAux T nil Result}
-                        else
-                            {SentenceToWordsAux T nil {AppendListOfList Result Word}}
-                        end
-                    elseif {Char.isPunct H} then
-                        % Don't add the word if it's empty
-                        if Word == nil orelse {String.toAtom Word} == amp then
-                            {SentenceToWordsAux T nil Result}
-                        else
-                            {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
-                        end
+                    % Don't add the word if it's empty
+                    if Word == nil then
+                        {SentenceToWordsAux T nil Result}
                     else
-                        {SentenceToWordsAux T Word Result}
+                        {SentenceToWordsAux T nil {AppendListOfList Result Word}}
                     end
                 end
             end
@@ -194,7 +169,7 @@ define
     in 
         case Sentence
         of nil then nil
-        [] H|T then
+        [] _|_ then
             {SentenceToWordsAux Sentence nil nil}
         end
     end
@@ -243,18 +218,18 @@ define
 
 
     %%% Thread that parses the lines
-    proc {ParseText Lines Port}
-        List Words
+    proc {ParseText Lines Port Sentences}
+        Words NewList
     in
         case Lines % lines to line
-        of nil then skip
-        [] H|T then
-            List = {SentenceToWords H}
-            Words = {GetThreeWords List}
+        of nil then 
+            Words = {GetThreeWords Sentences}
             for Word in Words do
                 {Send Port Word}
             end
-            {ParseText T Port}
+        [] H|T then
+            NewList = {List.append Sentences {SentenceToWords H}}
+            {ParseText T Port NewList}
         end
     end
 
@@ -266,7 +241,7 @@ define
             {Send Port finish}
         [] H|T then
             % parse the file text and go to the next text
-            {ParseText H Port}
+            {ParseText H Port nil}
             {ParseThread T Port}
         end
     end

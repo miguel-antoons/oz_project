@@ -31,7 +31,7 @@ auto_complete: main_auto_complete.ozf
 	$(OZENGINE) main_auto_complete.ozf --folder test_folder
 
 generalization: main_generalization.ozf
-	$(OZENGINE) main_generalization.ozf --folder $(TWEETS_FOLDER)
+	$(OZENGINE) main_generalization.ozf --folder test_folder
 
 add: add_file.ozf
 	$(OZENGINE) add_file.ozf --folder $(TWEETS_FOLDER)
