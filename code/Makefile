@@ -26,3 +26,6 @@ test: $(ENTRY_POINT)
 
 extension: main_ext.ozf
 	$(OZENGINE) main_ext.ozf --folder test_folder
+
+auto_complete: main_auto_complete.ozf
+	$(OZENGINE) main_auto_complete.ozf --folder test_folder

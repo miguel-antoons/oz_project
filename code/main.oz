@@ -166,27 +166,27 @@ define
         fun {SentenceToWordsAux S Word Result}
             case S
             of nil then
-                if Word == nil orelse {String.toAtom Word} == amp then
+                if Word == nil then
                     Result
                 else
                     {AppendListOfList Result Word}
                 end
-            [] H|T then
-                if {Char.isAlpha H} orelse {Char.isDigit H} then
-                    % Add the character to the word
+            [] H|T then 
+                if {Char.isDigit H} orelse (H > 64 andthen H < 91) orelse (H > 96 andthen H <123) then
+                    % Add the character to the word     
                     {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
                 else
                     % Add the word to the result
-                    if {Char.isSpace H} then
+                    % if {Char.isSpace H} then
                         % Don't add the word if it's empty
-                        if Word == nil then
-                            {SentenceToWordsAux T nil Result}
-                        else
-                            {SentenceToWordsAux T nil {AppendListOfList Result Word}}
-                        end
+                    if Word == nil then
+                        {SentenceToWordsAux T nil Result}
                     else
-                        {SentenceToWordsAux T Word Result}
+                        {SentenceToWordsAux T nil {AppendListOfList Result Word}}
                     end
+                    % else
+                    %     {SentenceToWordsAux T Word Result}
+                    % end
                 end
             end
         end
@@ -194,7 +194,7 @@ define
         case Sentence
         of nil then nil
         [] H|T then
-            {SentenceToWordsAux T {Char.toLower H}|nil nil}
+            {SentenceToWordsAux Sentence nil nil}
         end
     end
 
@@ -236,22 +236,19 @@ define
         end
     end
 
-    %%% Thread that parses the lines
-    proc {ParseText Lines Port}
-        List Words WriteFile
+     %%% Thread that parses the lines
+    proc {ParseText Lines Port Sentences}
+        Words WriteFile NewList
     in
         case Lines % lines to line
-        of nil then skip
-        [] H|T then
-            List = {SentenceToWords H}
-            for Word in List do
-                {Browse {String.toAtom Word}}
-            end
-            Words = {GetThreeWords List}
+        of nil then 
+            Words = {GetThreeWords Sentences}
             for Word in Words do
                 {Send Port Word}
             end
-            {ParseText T Port}
+        [] H|T then
+            NewList = {List.append Sentences {SentenceToWords H}}
+            {ParseText T Port NewList}
         end
     end
 
@@ -263,7 +260,7 @@ define
             {Send Port finish}
         [] H|T then
             % parse the file text and go to the next text
-            {ParseText H Port}
+            {ParseText H Port nil}
             {ParseThread T Port}
         end
     end

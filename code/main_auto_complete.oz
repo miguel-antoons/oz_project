@@ -15,7 +15,6 @@ define
 
     proc {Browse Buf}
         {Browser.browse Buf}
-
     end
 
     %%% ? PRESS BUTTON SECTION *
@@ -40,11 +39,11 @@ define
         case WordString
         of nil then
             {OutputWord set(1:"no word entered")}
-            notFound
         [] H|T then
-            Result = {Search {GetNLast {SentenceToWords WordString} nil 3 0} Tree.children}
+            Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children nil}
+
             case Result
-            of notFound then
+            of [[nil] 0] then
                 {OutputWord set(1:"No prediction was found. Try again...")}
             else
                 {OutputWord set(1:Result.1.1)}
@@ -58,7 +57,7 @@ define
     Tree
 
     %%% funtion searches for the most frequently used words following a sequence of words
-    fun {Search WordSequence RootChildren}
+    fun {Search WordSequence RootChildren PrimitiveResult}
         %%% returns the most frequently used words from a following other words
         fun {GetResult Children Result}
             % if there are no more children
@@ -96,16 +95,48 @@ define
             % if the current word is not in the children
             case RootChildren
             of nil then
-                % return an a 'notFound' atom
-                nil|0|nil
+                case PrimitiveResult
+                of nil then
+                    % return an a 'notFound' atom
+                    [[nil] 0]
+                else
+                    % return the result
+                    PrimitiveResult
+                end
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
                     % search the next word in the children of the current word
-                    {Search T H2.children}
+                    {Search T H2.children nil}
+                elseif {CompareWordStart H H2.word} then
+                    case PrimitiveResult
+                    of nil then 
+                        {Search WordSequence T2 ({String.toAtom H2.word}|nil)|H2.freq|nil}
+                    [] H3|T3 then
+                        if H2.freq > T3.1 then
+                            {Search WordSequence T2 ({String.toAtom H2.word}|nil)|H2.freq|nil}
+                        elseif H2.freq == T3.1 then
+                            {Search WordSequence T2 {List.append H3 {String.toAtom H2.word}|nil}|T3}
+                        else
+                            {Search WordSequence T2 PrimitiveResult}
+                        end
+                    end
                 else                    
-                    {Search WordSequence T2}
+                    {Search WordSequence T2 PrimitiveResult}
                 end
+            end
+        end
+    end
+
+
+    fun {CompareWordStart Word1 Word2}
+        if Word1 == nil orelse Word2 == nil then
+            true
+        else
+            if Word1.1 == Word2.1 then
+                {CompareWordStart Word1.2 Word2.2}
+            else
+                false
             end
         end
     end
@@ -140,16 +171,22 @@ define
 
 
     %%% funtion gets last 2 items of a list
-    fun {GetNLast List ResultAcc Max Count}
+    fun {Get2Last List}
         case List
-        of nil then
-            ResultAcc
-        [] H|T then
-            if Count < Max then
-                {GetNLast T {Append ResultAcc H} Max Count+1}
+        of H|T then
+            case T
+            of H2|T2 then
+                case T2
+                of nil then
+                    List
+                else
+                    {Get2Last T}
+                end
             else
-                {GetNLast T ResultAcc Max Count+1}
+                List
             end
+        else
+            List
         end
     end
 
@@ -161,7 +198,7 @@ define
         fun {SentenceToWordsAux S Word Result}
             case S
             of nil then
-                if Word == nil orelse {String.toAtom Word} == amp then
+                if Word == nil then
                     Result
                 else
                     {AppendListOfList Result Word}
@@ -174,17 +211,10 @@ define
                     % Add the word to the result
                     if {Char.isSpace H} then
                         % Don't add the word if it's empty
-                        if Word == nil orelse {String.toAtom Word} == amp then
+                        if Word == nil then
                             {SentenceToWordsAux T nil Result}
                         else
                             {SentenceToWordsAux T nil {AppendListOfList Result Word}}
-                        end
-                    elseif {Char.isPunct H} then
-                        % Don't add the word if it's empty
-                        if Word == nil orelse {String.toAtom Word} == amp then
-                            {SentenceToWordsAux T nil Result}
-                        else
-                            {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
                         end
                     else
                         {SentenceToWordsAux T Word Result}
@@ -210,11 +240,7 @@ define
                 [] H2|T2 then
                     if {ArrayLen H 0} == 1 then
                         if {Char.isPunct H.1} then
-                            case T 
-                            of nil then Result
-                            [] H3|T3 then 
-                                {GetThreeWordsAux T nil Result 0 T3}
-                            end
+                            {GetThreeWordsAux PastList Three Result Count T2}
                         else
                             if Count == 2 then
                                 {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
@@ -242,10 +268,9 @@ define
         end
     end
 
-
     %%% Thread that parses the lines
     proc {ParseText Lines Port}
-        List Words
+        List Words WriteFile
     in
         case Lines % lines to line
         of nil then skip
@@ -443,12 +468,11 @@ define
             % Creation de l interface graphique
             Description=td(
                 title: "Text predictor"
-                lr(text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) button(text:"Predict" width:15 action:PressButton))
+                lr(text(handle:InputText width:50 height:10 background:white foreground:black wrap:word action:PressButton))
                 text(handle:OutputText width:50 height:10 background:black foreground:white glue:w wrap:word)
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
             OutputWord = OutputText
-            NbNGrams = 3
 
             % Function that is called upon the predict button press
             proc {PressButton}
@@ -467,7 +491,7 @@ define
         
             % On lance les threads de lecture et de parsing
             SeparatedWordsPort = {NewPort SeparatedWordsStream}
-            NbThreads = 4
+            NbThreads = 1
             {LaunchThreads SeparatedWordsPort NbThreads}
 
             Tree = {SaverThread SeparatedWordsStream node(freq:0 word:0 children:nil) NbThreads 0}
