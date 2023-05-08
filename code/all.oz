@@ -1,20 +1,15 @@
 functor
 import 
     QTk at 'x-oz://system/wp/QTk.ozf'
-    System
     Application
     Open
     OS
     Property
-    Browser
+    System
 define
     %%% Pour ouvrir les fichiers
     class TextFile
         from Open.file Open.text
-    end
-
-    proc {Browse Buf}
-        {Browser.browse Buf}
     end
 
     %%% ? PRESS BUTTON SECTION *
@@ -40,7 +35,7 @@ define
         of nil then
             {OutputWord set(1:"no word entered")}
         [] _|_ then
-            Result = {Search {Get2Last {SentenceToWords WordString}} Tree.children}
+            Result = {Search {GetNLast {SentenceToWords WordString} nil MaxNGram 0} Tree.children nil}
 
             case Result
             of [[nil] 0] then
@@ -55,9 +50,11 @@ define
     InputText
     OutputWord
     Tree
+    MaxNGram
+    FileName
 
     %%% funtion searches for the most frequently used words following a sequence of words
-    fun {Search WordSequence RootChildren}
+    fun {Search WordSequence RootChildren PrimitiveResult}
         %%% returns the most frequently used words from a following other words
         fun {GetResult Children Result}
             % if there are no more children
@@ -95,16 +92,60 @@ define
             % if the current word is not in the children
             case RootChildren
             of nil then
-                % return an a 'notFound' atom
-                [[nil] 0]
+                case WordSequence
+                of _|T2 then
+                    if T2 == nil then
+                        case PrimitiveResult
+                        of nil then
+                            [[nil] 0]
+                        [] H2|T2 then
+                            PrimitiveResult
+                        end
+                    else
+                        [[nil] 0]
+                    end
+                end
             [] H2|T2 then
                 % if the word searched is equal to the current word
                 if H == H2.word then
                     % search the next word in the children of the current word
-                    {Search T H2.children}
+                    {Search T H2.children nil}
+                % verify if the beginning of the two words are the same
+                elseif {CompareWordStart H H2.word} then
+                    case PrimitiveResult
+                    of nil then 
+                        % add the word to the primitive result
+                        {Search WordSequence T2 ({String.toAtom H2.word}|nil)|H2.freq|nil}
+                    [] H3|T3 then
+                        % if the frequency of the current word is higher than the current result
+                        if H2.freq > T3.1 then
+                            % replace the result with the current word information
+                            {Search WordSequence T2 ({String.toAtom H2.word}|nil)|H2.freq|nil}
+                        elseif H2.freq == T3.1 then
+                            % add the current word information to the result
+                            {Search WordSequence T2 {List.append H3 {String.toAtom H2.word}|nil}|T3}
+                        else
+                            {Search WordSequence T2 PrimitiveResult}
+                        end
+                    end
                 else                    
-                    {Search WordSequence T2}
+                    {Search WordSequence T2 PrimitiveResult}
                 end
+            end
+        end
+    end
+
+
+    fun {CompareWordStart Word1 Word2}
+        if Word1 == nil then
+            true
+        elseif Word2 == nil then
+            false
+        else
+            if Word1.1 == Word2.1 then
+                {CompareWordStart Word1.2 Word2.2}
+            else
+                false
             end
         end
     end
@@ -130,22 +171,16 @@ define
 
 
     %%% funtion gets last 2 items of a list
-    fun {Get2Last List}
+    fun {GetNLast List ResultAcc Max Count}
         case List
-        of _|T then
-            case T
-            of _|T2 then
-                case T2
-                of nil then
-                    List
-                else
-                    {Get2Last T}
-                end
+        of nil then
+            ResultAcc
+        [] H|T then
+            if Count < Max then
+                {GetNLast T {Append ResultAcc H|nil} Max Count+1}
             else
-                List
+                {GetNLast T {Append ResultAcc H|nil}.2 Max Count+1}
             end
-        else
-            List
         end
     end
 
@@ -157,21 +192,33 @@ define
         fun {SentenceToWordsAux S Word Result}
             case S
             of nil then
-                if Word == nil then
+                if Word == nil orelse {String.toAtom Word} == amp then
                     Result
                 else
                     {AppendListOfList Result Word}
                 end
             [] H|T then 
-                if {Char.isDigit H} orelse (H > 64 andthen H < 91) orelse (H > 96 andthen H < 123) then
+                if {Char.isAlNum H} then
                     % Add the character to the word     
-                    {SentenceToWordsAux T {Append Word {Char.toLower H}|nil} Result}
+                    {SentenceToWordsAux T {List.append Word {Char.toLower H}|nil} Result}
                 else
                     % Add the word to the result
-                    if Word == nil then
+                    if {Char.isSpace H} then
+                    % Don't add the word if it's empty
+                        if Word == nil orelse {String.toAtom Word} == amp then
                         {SentenceToWordsAux T nil Result}
                     else
                         {SentenceToWordsAux T nil {AppendListOfList Result Word}}
+                    end
+                    elseif {Char.isPunct H} then
+                        % Don't add the word if it's empty
+                        if Word == nil orelse {String.toAtom Word} == amp then
+                            {SentenceToWordsAux T nil Result}
+                        else
+                            {SentenceToWordsAux T nil {AppendListOfList {AppendListOfList Result Word} {Char.toLower H}|nil}}
+                        end
+                    else
+                        {SentenceToWordsAux T Word Result}
                     end
                 end
             end
@@ -194,16 +241,20 @@ define
                 [] _|T2 then
                     if {ArrayLen H 0} == 1 then
                         if {Char.isPunct H.1} then
-                            {GetThreeWordsAux PastList Three Result Count T2}
+                            case T 
+                            of nil then Result
+                            [] _|T3 then 
+                                {GetThreeWordsAux T nil Result 0 T3}
+                            end
                         else
-                            if Count == 2 then
+                            if Count == MaxNGram then
                                 {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
                             else
                                 {GetThreeWordsAux T {AppendListOfList Three H} Result Count+1 PastList}
                             end
                         end
                     else
-                        if Count == 2 then
+                        if Count == MaxNGram then
                             % Add Three words to the result
                             {GetThreeWordsAux PastList nil {AppendListOfList Result {AppendListOfList Three H}} 0 T2}
                         else
@@ -223,18 +274,18 @@ define
     end
 
     %%% Thread that parses the lines
-    proc {ParseText Lines Port Sentences}
-        Words NewList
+    proc {ParseText Lines Port}
+        Words List
     in
         case Lines % lines to line
-        of nil then 
-            Words = {GetThreeWords Sentences}
+        of nil then skip
+        [] H|T then
+            List = {SentenceToWords H} % line to words
+            Words = {GetThreeWords List}
             for Word in Words do
                 {Send Port Word}
             end
-        [] H|T then
-            NewList = {List.append Sentences {SentenceToWords H}}
-            {ParseText T Port NewList}
+            {ParseText T Port}
         end
     end
 
@@ -246,11 +297,11 @@ define
             {Send Port finish}
         [] H|T then
             % parse the file text and go to the next text
-            {ParseText H Port nil}
+            {ParseText H Port}
             {ParseThread T Port}
         end
     end
-    
+        
     %%% ? READ SECTION *
 
     %%% funtion reads a file line per line and addds each line at the end of the Tunnel stream
@@ -298,7 +349,6 @@ define
             end
         end
     end
-
 
     %%% ? SAVER THREAD SECTION *
 
@@ -372,7 +422,7 @@ define
     end
 
 
-    %%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
+%%% Lance les N threads de lecture et de parsing qui liront et traiteront tous les fichiers
     %%% Les threads de parsing envoient leur resultat au port Port
     proc {LaunchThreads Port N}
         Arg List
@@ -446,13 +496,13 @@ define
             Description=td(
                 title: "Text predictor"
                 lr(
-                    text(handle:InputText width:50 height:10 background:white foreground:black wrap:word) 
-                    button(text:"Predict" width:15 action:PressButton))
-
+                    text(handle:InputText width:50 height:10 background:white foreground:black wrap:word action:PressButton)
+                )
                 text(handle:OutputText width:50 height:10 background:black foreground:white glue:w wrap:word)
                 action:proc{$}{Application.exit 0} end % quitte le programme quand la fenetre est fermee
             )
             OutputWord = OutputText
+            MaxNGram = 3
 
             % Function that is called upon the predict button press
             proc {PressButton}

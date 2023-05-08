@@ -1,10 +1,12 @@
 functor
 import 
     QTk at 'x-oz://system/wp/QTk.ozf'
+    System
     Application
     Open
     OS
     Property
+    Browser
 define
     %%% Pour ouvrir les fichiers
     class TextFile

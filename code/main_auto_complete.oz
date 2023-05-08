@@ -1,10 +1,12 @@
 functor
 import 
     QTk at 'x-oz://system/wp/QTk.ozf'
+    System
     Application
     Open
     OS
     Property
+    Browser
 define
     %%% Pour ouvrir les fichiers
     class TextFile
@@ -92,7 +94,12 @@ define
                 case WordSequence
                 of _|T2 then
                     if T2 == nil then
-                        PrimitiveResult
+                        case PrimitiveResult
+                        of nil then
+                            [[nil] 0]
+                        [] H2|T2 then
+                            PrimitiveResult
+                        end
                     else
                         [[nil] 0]
                     end

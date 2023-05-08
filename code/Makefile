@@ -24,9 +24,6 @@ clean :
 test: $(ENTRY_POINT)
 	$(OZENGINE) $(ENTRY_POINT) --folder test_folder
 
-extension: main_ext.ozf
-	$(OZENGINE) main_ext.ozf --folder test_folder
-
 autocomplete: main_auto_complete.ozf
 	$(OZENGINE) main_auto_complete.ozf --folder $(TWEETS_FOLDER)
 
@@ -38,3 +35,6 @@ add: add_file.ozf
 
 improve: main_improve.ozf
 	$(OZENGINE) main_improve.ozf --folder $(TWEETS_FOLDER)
+
+all_extensions: all.ozf
+	$(OZENGINE) all.ozf --folder $(TWEETS_FOLDER)
